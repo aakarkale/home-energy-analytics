@@ -130,7 +130,7 @@ export function buildAcPlan(
       period: 'Peak',
       time: winLabel,
       temp: temps.peak,
-      why: 'Keep the lid shut — the AC mostly rests.',
+      why: 'Keep the lid shut. The AC mostly rests.',
       bg: 'rgba(255,221,85,0.08)',
       border: 'rgba(255,221,85,0.3)',
       labelColor: 'rgb(255,221,85)',
@@ -150,10 +150,10 @@ export function buildAcPlan(
 
   const count = (b: Band) => `${days ? days.filter((d) => d.band === b).length : 0} day${days && days.filter((d) => d.band === b).length === 1 ? '' : 's'}`
   const bands: AcPlan['bands'] = [
-    { name: 'Off', range: 'below 78° — windows do the work', count: count('Off'), dot: BAND_COLOR.Off },
-    { name: 'Standard', range: '78–88° — pre-cool 72°, peak 78°', count: count('Standard'), dot: BAND_COLOR.Standard },
-    { name: 'Hot', range: '88–95° — pre-cool 70°, peak 77°', count: count('Hot'), dot: BAND_COLOR.Hot },
-    { name: 'Extreme', range: 'above 95° — comfort first', count: count('Extreme'), dot: BAND_COLOR.Extreme },
+    { name: 'Off', range: 'below 78°: windows do the work', count: count('Off'), dot: BAND_COLOR.Off },
+    { name: 'Standard', range: '78–88°: pre-cool 72°, peak 78°', count: count('Standard'), dot: BAND_COLOR.Standard },
+    { name: 'Hot', range: '88–95°: pre-cool 70°, peak 77°', count: count('Hot'), dot: BAND_COLOR.Hot },
+    { name: 'Extreme', range: 'above 95°: comfort first', count: count('Extreme'), dot: BAND_COLOR.Extreme },
   ]
 
   let nightFlush: AcPlan['nightFlush'] = null

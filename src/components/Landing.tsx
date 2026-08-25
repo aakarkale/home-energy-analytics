@@ -100,7 +100,7 @@ function HeroPreview() {
               <div style={{ width: `${100 - peakPct}%`, background: 'var(--bg-5)', borderRadius: '0 100px 100px 0' }} />
             </div>
             <div style={{ fontSize: 11, color: 'var(--fg-4)' }}>
-              {peakPct}% of cost lands in the detected {a.tou.label} peak — read from the bill itself
+              {peakPct}% of cost lands in the detected {a.tou.label} peak, read from the bill itself
             </div>
           </div>
         )}
@@ -163,7 +163,7 @@ const FEATURES: Feature[] = [
     icon: 'ph ph-chart-line-up',
     color: 'rgb(255,221,85)',
     title: 'See the shape of your usage',
-    body: 'Daily trends, an hourly heatmap, your typical load curve and day-of-week patterns — every chart drawn from your own meter readings.',
+    body: 'Daily trends, an hourly heatmap, your typical load curve and day-of-week patterns. Every chart is drawn from your own meter readings.',
   },
   {
     icon: 'ph ph-receipt',
@@ -176,7 +176,7 @@ const FEATURES: Feature[] = [
     icon: 'ph ph-pulse',
     color: 'rgb(255,133,115)',
     title: 'Spikes, caught and explained',
-    body: 'Robust statistics flag the days that broke pattern — and priced what they cost you. Estimated readings never trigger false alarms.',
+    body: 'Robust statistics flag the days that broke pattern and price what they cost you. Estimated readings never trigger false alarms.',
     visual: miniEvent(),
   },
   {
@@ -190,13 +190,13 @@ const FEATURES: Feature[] = [
     icon: 'ph ph-currency-dollar',
     color: 'rgb(4,196,10)',
     title: 'Honest dollar advice',
-    body: 'Savings estimates only count load that plausibly belongs to the thing being discussed — never a flat share of the bill.',
+    body: 'Savings estimates only count load that plausibly belongs to the thing being discussed, never a flat share of the bill.',
   },
   {
     icon: 'ph ph-lock',
     color: 'rgb(255,221,85)',
     title: 'Private by design',
-    body: 'Parsing and analysis run in your browser. Your CSV is stored only when you finish setup on an account — and you can remove it any time.',
+    body: 'Parsing and analysis run in your browser. Your CSV is stored only when you finish setup on an account, and you can remove it any time.',
   },
 ]
 
@@ -209,7 +209,7 @@ const STEPS: { n: string; title: string; body: string }[] = [
   {
     n: '2',
     title: 'Drop it into Hearth',
-    body: "Electric and gas, hourly or daily — the parser figures it out. Confirm your billing cycle and you're done.",
+    body: "Electric and gas, hourly or daily: the parser figures it out. Confirm your billing cycle and you're done.",
   },
   {
     n: '3',
@@ -261,7 +261,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
             </h1>
             <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: 'var(--fg-2)', maxWidth: 480 }}>
               Upload the CSV your utility already gives you. Hearth reads your real rates, finds the
-              spikes, and prices out exactly what to change — in your browser, on your data.
+              spikes, and prices out exactly what to change. In your browser, on your data.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <button onClick={() => enter('create')} className="h-interactive btn-acc press98" style={accBtn}>
@@ -285,7 +285,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
           Everything the meter knows. Finally readable.
         </h2>
         <p style={{ margin: '0 0 28px', fontSize: 14, color: 'var(--fg-3)' }}>
-          Five views, one upload — each one computed from your data, none of it generic advice.
+          Five views, one upload. Each one computed from your data, none of it generic advice.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
           {FEATURES.map((f) => (
@@ -329,7 +329,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
             </div>
             <div style={{ fontSize: 13, color: 'var(--fg-3)', marginTop: 5, lineHeight: 1.55 }}>
               Analysis runs locally. Finishing setup on an account stores your CSV behind row-level
-              security so only you can read it — and one click removes it. No account? Guest mode keeps
+              security so only you can read it, and one click removes it. No account? Guest mode keeps
               everything on this device.
             </div>
           </div>
@@ -342,7 +342,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
           Bring one month of data. Leave with a plan.
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--fg-3)' }}>
-          Or poke around the demo home first — it runs the exact same analysis.
+          Or poke around the demo home first. It runs the exact same analysis.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => enter('create')} className="h-interactive btn-acc press98" style={accBtn}>

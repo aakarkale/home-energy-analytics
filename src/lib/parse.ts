@@ -161,7 +161,7 @@ export function parseGreenButtonCsv(csv: string, fileName: string): ParsedUpload
     a.d === b.d ? (a.h ?? 0) - (b.h ?? 0) : a.d < b.d ? -1 : 1,
   )
   if (!readings.length) {
-    throw new ParseError('No usable rows found — every row was missing a date or usage value.')
+    throw new ParseError('No usable rows found: every row was missing a date or usage value.')
   }
 
   const unit: 'kWh' | 'therms' =

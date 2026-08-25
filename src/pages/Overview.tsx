@@ -164,7 +164,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             </>
           ) : (
             <div style={{ fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.5 }}>
-              Upload hourly electricity data to unlock dollar-quantified savings — peak shifting,
+              Upload hourly electricity data to unlock dollar-quantified savings: peak shifting,
               pre-cooling and standby trimming are all measured from your own meter.
             </div>
           )}
@@ -237,7 +237,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             </div>
           ) : (
             <div style={{ fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.5 }}>
-              No AC configured — the playbook focuses on night flush and passive-cooling habits instead.
+              No AC configured, so the playbook focuses on night flush and passive-cooling habits instead.
             </div>
           )}
           <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
@@ -257,8 +257,8 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           </div>
           <div style={{ fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.5 }}>
             {events.length
-              ? `${events.length} event${events.length === 1 ? '' : 's'} flagged this period${highCount ? ` — ${highCount === 1 ? 'one high-severity spike is' : highCount + ' high-severity spikes are'} worth a look.` : '.'}`
-              : 'No anomalies flagged this period — a quiet stretch.'}
+              ? `${events.length} event${events.length === 1 ? '' : 's'} flagged this period${highCount ? `; ${highCount === 1 ? 'one high-severity spike is' : highCount + ' high-severity spikes are'} worth a look.` : '.'}`
+              : 'No anomalies flagged this period. A quiet stretch.'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
             <div style={{ flex: 1, height: 5, borderRadius: 100, background: 'var(--bg-4)', overflow: 'hidden' }}>

@@ -25,7 +25,7 @@ const OB_GROUPS: { key: 'ac' | 'occ' | 'home' | 'extras'; label: string; why: st
   {
     key: 'ac',
     label: 'AC type',
-    why: 'Tailors the AC Playbook — or hides it if you have no AC.',
+    why: 'Tailors the AC Playbook, or hides it if you have no AC.',
     opts: ['Central AC', 'Heat pump', 'Window / portable', 'No AC'],
   },
   {
@@ -328,7 +328,7 @@ export function Onboarding({
         {obStep === 0 && !hearth.isAuthed && (
           <>
             <div style={noteStyle}>
-              An account keeps your data and answers synced across devices. Or explore the demo first —
+              An account keeps your data and answers synced across devices. Or explore the demo first,
               no sign-up needed.
             </div>
             <div style={{ display: 'flex', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 3, gap: 2 }}>
@@ -361,7 +361,7 @@ export function Onboarding({
             </div>
             {confirmSent && (
               <div style={{ fontSize: 12, color: 'var(--accent-green)', lineHeight: 1.5, background: 'rgba(4,196,10,0.12)', borderRadius: 12, padding: '10px 14px' }}>
-                Check your inbox — confirm your email, then sign in here.
+                Check your inbox: confirm your email, then sign in here.
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -430,7 +430,7 @@ export function Onboarding({
         {obStep === 1 && (
           <>
             <div style={noteStyle}>
-              Optional — each answer changes what Hearth asks and suggests. Skip anything.
+              Optional. Each answer changes what Hearth asks and suggests. Skip anything.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
@@ -588,7 +588,7 @@ export function Onboarding({
             <div style={{ fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.5 }}>
               Get the file from pge.com → Energy Usage Details →{' '}
               <b style={{ color: 'var(--fg-2)' }}>Green Button · Download my data</b>. Your data never
-              leaves this device until you finish setup{hearth.isAuthed ? ' — then it saves to your account' : ''}.
+              leaves this device until you finish setup{hearth.isAuthed ? ', then it saves to your account' : ''}.
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={hearth.obBack} className="h-interactive hov-bg3" style={backBtn}>
@@ -623,7 +623,7 @@ export function Onboarding({
             {parsed.length && billing ? (
               <>
                 <div style={noteStyle}>
-                  We pre-filled this from your file — adjust if your PG&amp;E statement cycle differs.
+                  We pre-filled this from your file. Adjust if your PG&amp;E statement cycle differs.
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -667,7 +667,7 @@ export function Onboarding({
                 )}
               </>
             ) : (
-              <div style={noteStyle}>No new files this time — your current data stays as is.</div>
+              <div style={noteStyle}>No new files this time, so your current data stays as is.</div>
             )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={hearth.obBack} className="h-interactive hov-bg3" style={backBtn}>

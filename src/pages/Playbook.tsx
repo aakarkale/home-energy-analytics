@@ -16,8 +16,8 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
       {!hasElectric && hearth.mode === 'live' && (
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-          Upload hourly electricity data and the schedule below anchors to your own detected peak window
-          — right now it shows the standard 4–9 PM plan.
+          Upload hourly electricity data and the schedule below anchors to your own detected peak window.
+          Right now it shows the standard 4–9 PM plan.
         </div>
       )}
 
@@ -52,7 +52,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
       ) : (
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-wind" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-          No AC configured — skip the thermostat schedule. Night flush and the habits below still apply.
+          No AC configured, so skip the thermostat schedule. Night flush and the habits below still apply.
         </div>
       )}
 
@@ -83,7 +83,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
             <i className="ph ph-cloud-sun" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
             {hearth.zipMissing
               ? 'Add your ZIP code in setup to see a live 7-day forecast with temperature bands.'
-              : 'Forecast unavailable right now — bands below still explain how the plan adapts.'}
+              : 'Forecast unavailable right now. The bands below still explain how the plan adapts.'}
             {hearth.zipMissing && (
               <button
                 onClick={() => hearth.openOb(1)}
@@ -113,7 +113,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
             <div style={{ fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.5 }}>
               Open windows when peak ends at <b style={{ color: 'var(--fg-1)' }}>{plan.nightFlush.openAt}</b>, close
               them by <b style={{ color: 'var(--fg-1)' }}>{plan.nightFlush.closeBy}</b>. That's free
-              air-conditioning — the AC starts the day from a cool house.
+              air-conditioning: the AC starts the day from a cool house.
             </div>
           </div>
         )}
@@ -135,16 +135,16 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Two habits, one honest note</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.5 }}>
           <i className="ph ph-sun-horizon" style={{ fontSize: 16, color: 'var(--acc,#ffdd55)', flex: 'none', marginTop: 2 }} />
-          Close west- and south-facing blinds by noon — sun through glass is a space heater.
+          Close west- and south-facing blinds by noon. Sun through glass is a space heater.
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.5 }}>
           <i className="ph ph-fan" style={{ fontSize: 16, color: 'var(--acc,#ffdd55)', flex: 'none', marginTop: 2 }} />
-          Leave the fan on Auto — "On" runs the blower all day for little comfort gain.
+          Leave the fan on Auto: "On" runs the blower all day for little comfort gain.
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.5, borderTop: '1px solid var(--bg-6)', paddingTop: 10, marginTop: 2 }}>
           <i className="ph ph-hand-heart" style={{ fontSize: 16, color: 'var(--fg-4)', flex: 'none', marginTop: 2 }} />
           {plan.peak.temp} at peak is a real comfort change. A temperature you'll actually keep beats the
-          theoretical optimum — adjust the plan, not your patience.
+          theoretical optimum. Adjust the plan, not your patience.
         </div>
       </div>
     </>
