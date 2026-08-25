@@ -1,0 +1,26 @@
+{
+  "name": "home-energy-analytics",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Hearth — home energy analytics dashboard (implementation of the Hearth Prototype design)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.2.5",
+    "@phosphor-icons/web": "^2.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.0"
+  }
+}
