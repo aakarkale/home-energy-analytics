@@ -278,6 +278,7 @@ export default function App() {
             height: '100%',
             width: '100%',
             overflowY: 'auto',
+            overflowX: 'hidden',
             fontFamily: 'var(--font-dm-sans)',
             color: 'var(--fg-1)',
             background: 'var(--bg-0)',

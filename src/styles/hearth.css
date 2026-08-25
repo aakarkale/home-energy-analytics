@@ -6,6 +6,11 @@
    the interaction utilities use !important to override them on state).
    ===================================================================== */
 
+/* Padding lives inside declared widths everywhere — without this, any
+   width:100% element with horizontal padding overflows the viewport and
+   drags in a page-level horizontal scroll on mobile. */
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body {
   margin: 0;
   padding: 0;
