@@ -34,7 +34,13 @@ export async function signUp(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: name } },
+    options: {
+      data: { display_name: name },
+      // Confirmation links come back to the origin the user signed up on
+      // (production, preview, or localhost) instead of the project-wide
+      // Site URL — the origin must be in the auth Redirect URLs allow-list.
+      emailRedirectTo: window.location.origin,
+    },
   })
   if (error) return { error: error.message }
   if (!data.session) return { needsConfirm: true }
