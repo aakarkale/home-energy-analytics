@@ -3,6 +3,7 @@ import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, Page, Theme } from 
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
+import { buildRates } from './lib/rates'
 import { buildInsights, buildQuestions, buildSavings, precoolEstimate } from './lib/content'
 import { buildAcPlan } from './lib/acplan'
 import { SAMPLE_FORECAST } from './lib/sample'
@@ -13,6 +14,7 @@ import { MobileTabBar } from './components/MobileTabBar'
 import { Onboarding } from './components/Onboarding'
 import { Overview } from './pages/Overview'
 import { Energy } from './pages/Energy'
+import { Rates } from './pages/Rates'
 import { Playbook } from './pages/Playbook'
 import { Activity } from './pages/Activity'
 
@@ -77,6 +79,7 @@ export default function App() {
       const analysis = analyzeFuel(rec.parsed, rec.billing)
       out[f] = {
         analysis,
+        rates: f === 'electric' ? buildRates(rec.parsed, analysis.tou, rec.billing) : null,
         insights: buildInsights(analysis, store.profile),
         savings: buildSavings(analysis, store.profile),
         questions: buildQuestions(analysis, store.profile),
@@ -285,6 +288,7 @@ export default function App() {
             >
               {page === 'overview' && <Overview hearth={hearth} store={store} />}
               {page === 'energy' && <Energy hearth={hearth} />}
+              {page === 'rates' && <Rates hearth={hearth} />}
               {page === 'playbook' && <Playbook hearth={hearth} />}
               {page === 'activity' && <Activity hearth={hearth} />}
             </div>

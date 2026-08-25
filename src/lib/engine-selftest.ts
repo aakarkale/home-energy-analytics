@@ -3,6 +3,7 @@
 import { sampleUploads, SAMPLE_BILLING } from './sample'
 import { analyzeFuel } from './analyze'
 import { buildInsights, buildQuestions, buildSavings } from './content'
+import { buildRates } from './rates'
 
 export function runSelfTest(): void {
   const { electric, gas } = sampleUploads()
@@ -39,4 +40,30 @@ export function runSelfTest(): void {
     console.log('insights:', buildInsights(a, profile).map((i) => i.title))
     console.log('questions:', buildQuestions(a, profile).map((q) => `[${q.tag}] ${q.text.slice(0, 70)} :: ${q.opts.join('/')}`))
   }
+}
+
+export function runRatesTest(): void {
+  const { electric } = sampleUploads()
+  const a = analyzeFuel(electric, SAMPLE_BILLING)
+  const r = buildRates(electric, a.tou, SAMPLE_BILLING)
+  if (!r) {
+    console.log('rates: null')
+    return
+  }
+  console.log('\n=== rates ===')
+  console.log('hasTiers', r.hasTiers)
+  console.log('levels off', r.offBelow?.toFixed(4), '/', r.offAbove?.toFixed(4), ' peak', r.peakBelow?.toFixed(4), '/', r.peakAbove?.toFixed(4))
+  console.log('premium below/above', r.premiumBelow?.toFixed(4), r.premiumAbove?.toFixed(4), 'tier step off/peak %', r.tierStepOffPct, r.tierStepPeakPct)
+  console.log('top spend hours', r.topSpendHours.slice(0, 3), 'heaviest', r.heaviestHours.slice(0, 3))
+  console.log('cheaperNeighbor', r.cheaperNeighbor)
+  if (r.allowance) {
+    console.log('allowance/day', r.allowance.perDayLow.toFixed(1), '-', r.allowance.perDayHigh.toFixed(1),
+      'per cycle', Math.round(r.allowance.perCycleLow), '-', Math.round(r.allowance.perCycleHigh),
+      'crossed day', r.allowance.crossings.map((c) => c.onDay),
+      'lastCycleKwh', Math.round(r.allowance.lastCycleKwh),
+      'multiple', r.allowance.multipleLow.toFixed(1), '-', r.allowance.multipleHigh.toFixed(1),
+      'cycle value $' + r.allowance.cycleValue.toFixed(0))
+  } else console.log('allowance: none')
+  console.log('hour rows sample:', r.hours.filter((x) => [6, 15, 16, 20, 21].includes(x.h)).map((x) =>
+    `${x.h}${x.peak ? 'P' : ''} below ${x.below?.toFixed(3) ?? '—'} above ${x.above?.toFixed(3) ?? '—'} eff ${x.effective?.toFixed(3)} avg ${x.avgKwh.toFixed(2)} $${x.totalCost.toFixed(0)}`))
 }

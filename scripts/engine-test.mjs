@@ -15,3 +15,4 @@ await build({
 })
 const mod = await import(pathToFileURL(out).href)
 mod.runSelfTest()
+mod.runRatesTest()
