@@ -1,8 +1,9 @@
 import type { FuelAnalysis } from './lib/analyze'
 import type { Insight, QDef, SavingItem } from './lib/content'
 import type { AcPlan } from './lib/acplan'
+import type { RatesAnalysis } from './lib/rates'
 
-export type Page = 'overview' | 'energy' | 'playbook' | 'activity'
+export type Page = 'overview' | 'energy' | 'rates' | 'playbook' | 'activity'
 export type Fuel = 'electric' | 'gas'
 export type Metric = 'usage' | 'cost'
 export type Theme = 'dark' | 'light'
@@ -30,6 +31,8 @@ export interface EvMetaEntry {
 /** Everything computed for one fuel's dashboard. */
 export interface FuelBundle {
   analysis: FuelAnalysis
+  /** Rate-plan analysis (hourly electric with costs only). */
+  rates: RatesAnalysis | null
   insights: Insight[]
   savings: { items: SavingItem[]; total: string }
   questions: QDef[]

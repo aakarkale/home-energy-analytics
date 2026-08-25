@@ -12,8 +12,16 @@ export const SAMPLE_GAS_NAME = 'pge_gas_usage_jul-aug.csv'
 
 const PEAK_START = 16 // 4 PM
 const PEAK_END = 20 // through 8:59 PM → "4–9 PM"
-const PEAK_RATE = 0.52
-const OFF_RATE = 0.39
+
+// E-TOU-C-style pricing: the hour of day sets the window, and crossing the
+// cycle's baseline allowance steps both windows up a tier.
+const RATES = {
+  offBelow: 0.317,
+  offAbove: 0.399,
+  peakBelow: 0.44,
+  peakAbove: 0.522,
+}
+const ALLOWANCE_KWH_PER_DAY = 9.8
 
 function dateKey(dt: Date): string {
   const p = (x: number) => String(x).padStart(2, '0')
@@ -56,13 +64,23 @@ export function sampleElectricCsv(): string {
         d,
         h,
         usage: (day.usage * weights[h]) / sum,
-        rate: h >= PEAK_START && h <= PEAK_END ? PEAK_RATE : OFF_RATE,
+        rate: 0, // assigned in the pricing pass below
         est,
       })
     }
   })
 
-  // Scale costs so the period totals exactly $686.10.
+  // Price each reading: window by hour, tier by cumulative kWh vs the cycle's
+  // baseline allowance (the cycle starts with the data here), then scale so
+  // the period totals exactly $686.10.
+  const allowance = ALLOWANCE_KWH_PER_DAY * 31
+  let cum = 0
+  for (const r of rows) {
+    const above = cum >= allowance
+    const peak = r.h >= PEAK_START && r.h <= PEAK_END
+    r.rate = peak ? (above ? RATES.peakAbove : RATES.peakBelow) : above ? RATES.offAbove : RATES.offBelow
+    cum += r.usage
+  }
   const rawCost = rows.reduce((a, r) => a + r.usage * r.rate, 0)
   const k = 686.10 / rawCost
 

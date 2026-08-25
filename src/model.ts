@@ -3,6 +3,7 @@ import type { Fuel, Page } from './types'
 export const NAV_PAGES: { id: Page; label: string; short: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', short: 'Home', icon: 'ph ph-squares-four' },
   { id: 'energy', label: 'Energy', short: 'Energy', icon: 'ph ph-chart-line-up' },
+  { id: 'rates', label: 'Rates', short: 'Rates', icon: 'ph ph-receipt' },
   { id: 'playbook', label: 'AC Playbook', short: 'Playbook', icon: 'ph ph-snowflake' },
   { id: 'activity', label: 'Activity', short: 'Activity', icon: 'ph ph-pulse' },
 ]
@@ -10,6 +11,7 @@ export const NAV_PAGES: { id: Page; label: string; short: string; icon: string }
 export const PAGE_TITLES: Record<Page, string> = {
   overview: '', // greeting is dynamic
   energy: 'Energy',
+  rates: 'Rates',
   playbook: 'AC Playbook',
   activity: 'Activity',
 }

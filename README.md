@@ -9,8 +9,8 @@ computed from their own meter data. A built-in **demo mode** shows the complete
 experience on a sample home before signing up — the demo runs the exact same parsing
 and analysis pipeline over bundled sample CSVs.
 
-Built in the Hearth design (Kole Jain design system) — four pages (Overview, Energy,
-AC Playbook, Activity), dark/light themes, desktop and mobile layouts.
+Built in the Hearth design (Kole Jain design system) — five pages (Overview, Energy,
+Rates, AC Playbook, Activity), dark/light themes, desktop and mobile layouts.
 
 ## How it works
 
@@ -19,6 +19,9 @@ AC Playbook, Activity), dark/light themes, desktop and mobile layouts.
   their account so any device can re-analyze it).
 - **The rate plan is never assumed.** The peak window and peak/off-peak rates are
   inferred from the user's own cost column, so any PG&E plan works unconfigured.
+  The Rates page goes further: it clusters unit prices into below/above-allowance
+  tiers, tabulates hour-by-hour effective rates against the load actually run, and
+  estimates the baseline allowance from where each cycle's prices step up.
 - **Robust statistics only.** Baselines use median/MAD, so the spikes being hunted
   can't drag their own baseline. Estimated readings are excluded from spike
   detection. Gas uses an adaptive active-day threshold (water-heater days vs idle).
@@ -62,6 +65,8 @@ src/
     stats.ts         Robust statistics primitives (median, MAD, quantile)
     analyze.ts       The engine: TOU detection, always-on load, anomaly events,
                      hourly profile, heatmap, bill projection
+    rates.ts         Rate-plan analysis: tier clustering, hour-by-hour effective
+                     rates, baseline-allowance estimation
     content.ts       Generated insights, savings estimates, diagnostic questions
     acplan.ts        Thermostat schedule + comfort bands from the detected peak
     weather.ts       ZIP → 7-day forecast (cached, optional, degrades gracefully)
