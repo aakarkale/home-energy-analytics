@@ -83,7 +83,7 @@ export interface Hearth {
   toggleTheme: () => void
   setMode: (mode: Mode) => void
 
-  openOb: (step?: number) => void
+  openOb: (step?: number, tab?: ObTab) => void
   closeOb: () => void
   obNext: () => void
   obBack: () => void

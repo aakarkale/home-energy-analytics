@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, Page, Theme } from './types'
+import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, Theme } from './types'
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
@@ -8,6 +8,7 @@ import { buildInsights, buildQuestions, buildSavings, precoolEstimate } from './
 import { buildAcPlan } from './lib/acplan'
 import { SAMPLE_FORECAST } from './lib/sample'
 import { fmtMoney, fmtMonthDay, fmtNum } from './lib/format'
+import { Landing } from './components/Landing'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { MobileTabBar } from './components/MobileTabBar'
@@ -43,14 +44,18 @@ export default function App() {
   const [fuel, setFuel] = useState<Fuel>('electric')
   const [metric, setMetric] = useState<Metric>('usage')
   const [filter, setFilter] = useState<EventFilter>('All')
-  const [ob, setOb] = useState<boolean>(() => {
+  // The marketing landing fronts the app for brand-new visitors; anyone who
+  // has entered before (or holds a session) goes straight in.
+  const [view, setView] = useState<'landing' | 'app'>(() => {
     try {
-      return localStorage.getItem(SETUP_KEY) !== '1'
+      return localStorage.getItem(SETUP_KEY) === '1' ? 'app' : 'landing'
     } catch {
-      return false
+      return 'app'
     }
   })
+  const [ob, setOb] = useState(false)
   const [obStep, setObStep] = useState(0)
+  const [obTab, setObTab] = useState<ObTab>('create')
   const [otherDraft, setOtherDraftState] = useState<Record<string, string>>({})
 
   const elec = fuel === 'electric'
@@ -91,6 +96,11 @@ export default function App() {
     }
     return out
   }, [store.uploads, store.profile])
+
+  // A live session skips the marketing page (new device, confirmed email, …).
+  useEffect(() => {
+    if (store.session) setView('app')
+  }, [store.session])
 
   // Until the user explicitly picks a fuel, follow whichever one has data —
   // an explicit pick sticks so the empty state stays reachable.
@@ -195,8 +205,9 @@ export default function App() {
     },
     setMode: store.setMode,
 
-    openOb: (step = 0) => {
+    openOb: (step = 0, tab) => {
       setObStep(step)
+      if (tab) setObTab(tab)
       setOb(true)
     },
     closeOb: () => {
@@ -239,6 +250,46 @@ export default function App() {
       const meta = store.evMeta[`${f}:${date}`] || {}
       store.setEvMeta(f, date, { ...meta, away: !meta.away })
     },
+  }
+
+  const enterApp = (kind: 'create' | 'signin' | 'demo') => {
+    try {
+      localStorage.setItem(SETUP_KEY, '1')
+    } catch {
+      /* private mode */
+    }
+    setView('app')
+    if (kind === 'demo') {
+      store.setMode('demo')
+      setOb(false)
+    } else {
+      setObTab(kind)
+      setObStep(0)
+      setOb(true)
+    }
+  }
+
+  if (view === 'landing') {
+    return (
+      <div
+        className={light ? 'hearth-light' : undefined}
+        style={
+          {
+            height: '100%',
+            width: '100%',
+            overflowY: 'auto',
+            fontFamily: 'var(--font-dm-sans)',
+            color: 'var(--fg-1)',
+            background: 'var(--bg-0)',
+            letterSpacing: '-0.01em',
+            '--acc': 'rgb(255,221,85)',
+            '--accSoft': 'rgba(255,221,85,0.13)',
+          } as CSSProperties
+        }
+      >
+        <Landing enter={enterApp} />
+      </div>
+    )
   }
 
   return (
@@ -298,7 +349,7 @@ export default function App() {
         </div>
       </div>
 
-      {ob && <Onboarding hearth={hearth} store={store} />}
+      {ob && <Onboarding hearth={hearth} store={store} initialTab={obTab} />}
     </div>
   )
 }

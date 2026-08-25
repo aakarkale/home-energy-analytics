@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.2.5",
+    "@fontsource/unbounded": "^5.3.0",
     "@phosphor-icons/web": "^2.1.1",
     "@supabase/supabase-js": "^2.112.4",
     "react": "^19.1.0",
