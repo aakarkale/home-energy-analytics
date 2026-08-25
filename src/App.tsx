@@ -102,6 +102,15 @@ export default function App() {
     if (store.session) setView('app')
   }, [store.session])
 
+  // Landing on a password-reset link opens setup straight at the new-password
+  // prompt, whatever else the browser remembered.
+  useEffect(() => {
+    if (!store.recovering) return
+    setView('app')
+    setObStep(0)
+    setOb(true)
+  }, [store.recovering])
+
   // Until the user explicitly picks a fuel, follow whichever one has data —
   // an explicit pick sticks so the empty state stays reachable.
   const userPickedFuel = useRef(false)

@@ -78,9 +78,17 @@ export interface HearthStore {
   evMeta: Record<string, EvMetaEntry>
   forecast: ForecastDay[] | null
 
-  signUp: (name: string, email: string, pw: string) => Promise<{ error?: string; needsConfirm?: boolean }>
+  signUp: (
+    name: string,
+    email: string,
+    pw: string,
+  ) => Promise<{ error?: string; needsConfirm?: boolean; alreadyRegistered?: boolean }>
   signIn: (email: string, pw: string) => Promise<{ error?: string }>
   signOutUser: () => Promise<void>
+  /** True while a password-reset link's recovery session is active. */
+  recovering: boolean
+  requestPasswordReset: (email: string) => Promise<{ error?: string }>
+  completePasswordReset: (pw: string) => Promise<{ error?: string }>
   saveProfilePatch: (patch: Partial<Profile>) => void
   commitUploads: (parsed: ParsedUpload[], billing: { start: string; end: string } | null) => Promise<void>
   removeMyUpload: (fuel: Fuel) => Promise<void>
@@ -91,6 +99,7 @@ export interface HearthStore {
 export function useHearthStore(): HearthStore {
   const [authReady, setAuthReady] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
+  const [recovering, setRecovering] = useState(false)
   const [profile, setProfile] = useState<Profile>({
     display_name: null,
     zip: null,
@@ -138,7 +147,10 @@ export function useHearthStore(): HearthStore {
         setAuthReady(true)
       }
     })
-    const { data: sub } = api.supabase.auth.onAuthStateChange((_evt, s) => {
+    const { data: sub } = api.supabase.auth.onAuthStateChange((evt, s) => {
+      // A reset link signs the user in with a recovery session; hold that flag
+      // so the UI asks for a new password instead of dropping them into the app.
+      if (evt === 'PASSWORD_RECOVERY') setRecovering(true)
       setSession(s)
       setAuthReady(true)
     })
@@ -323,6 +335,12 @@ export function useHearthStore(): HearthStore {
     [session, accountUploads],
   )
 
+  const completePasswordReset = useCallback(async (pw: string) => {
+    const res = await api.updatePassword(pw)
+    if (!res.error) setRecovering(false)
+    return res
+  }, [])
+
   const signOutUser = useCallback(async () => {
     await api.signOut()
     setProfile({
@@ -353,6 +371,9 @@ export function useHearthStore(): HearthStore {
     signUp: api.signUp,
     signIn: api.signIn,
     signOutUser,
+    recovering,
+    requestPasswordReset: api.requestPasswordReset,
+    completePasswordReset,
     saveProfilePatch,
     commitUploads,
     removeMyUpload,

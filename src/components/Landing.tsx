@@ -9,12 +9,19 @@ import { analyzeFuel } from '../lib/analyze'
 import { seriesPath } from '../lib/svg'
 import { fmtMoney, fmtNum } from '../lib/format'
 
-const MAXW = 1080
+// Wide-screen behavior: content widens with the viewport up to 1440px, then
+// stays centered — grids gain columns as room appears, text measures stay
+// readable instead of stretching across an ultrawide.
+const MAXW = 1440
 
 const section: CSSProperties = {
+  // width:100% is load-bearing — these sections are children of a column flex
+  // container, where auto side margins suppress stretch and would otherwise
+  // shrink each band to its fit-content width instead of filling the screen.
+  width: '100%',
   maxWidth: MAXW,
   margin: '0 auto',
-  padding: '0 clamp(16px, 4vw, 28px)',
+  padding: '0 clamp(16px, 4vw, 48px)',
 }
 
 const accBtn: CSSProperties = {
@@ -241,7 +248,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
 
       {/* Hero */}
       <div style={section}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'clamp(28px, 4vw, 48px)', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(28px, 5vw, 72px)', alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--acc,#ffdd55)' }}>
               For homes on PG&E
@@ -251,7 +258,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
                 margin: 0,
                 fontFamily: 'var(--font-unbounded)',
                 fontWeight: 700,
-                fontSize: 'clamp(34px, 5.2vw, 58px)',
+                fontSize: 'clamp(34px, 4.6vw, 64px)',
                 lineHeight: 1.04,
                 letterSpacing: '-0.04em',
                 color: 'var(--fg-0)',
@@ -259,7 +266,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
             >
               Your energy bill, decoded.
             </h1>
-            <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: 'var(--fg-2)', maxWidth: 480 }}>
+            <p style={{ margin: 0, fontSize: 'clamp(16px, 1.15vw, 18px)', lineHeight: 1.55, color: 'var(--fg-2)', maxWidth: 540 }}>
               Upload the CSV your utility already gives you. Hearth reads your real rates, finds the
               spikes, and prices out exactly what to change. In your browser, on your data.
             </p>
@@ -281,21 +288,24 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
 
       {/* Features */}
       <div style={section}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: 'clamp(24px, 2.6vw, 36px)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
           Everything the meter knows. Finally readable.
         </h2>
-        <p style={{ margin: '0 0 28px', fontSize: 14, color: 'var(--fg-3)' }}>
+        <p style={{ margin: '0 0 28px', fontSize: 'clamp(14px, 1.05vw, 16px)', color: 'var(--fg-3)' }}>
           Five views, one upload. Each one computed from your data, none of it generic advice.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+        {/* min 340px per card: 3-up on wide screens (2 rows of 3), 2-up on laptops, 1-up on phones. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 14 }}>
           {FEATURES.map((f) => (
-            <div key={f.title} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-6)', borderRadius: 16, padding: 20 }}>
+            <div key={f.title} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-6)', borderRadius: 16, padding: 'clamp(20px, 1.7vw, 26px)', display: 'flex', flexDirection: 'column' }}>
               <i className={f.icon} style={{ fontSize: 22, color: f.color }} />
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)', margin: '10px 0 6px', letterSpacing: '-0.01em' }}>
                 {f.title}
               </div>
               <div style={{ fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.55 }}>{f.body}</div>
-              {f.visual}
+              {/* Pinned to the card floor so the mini-visuals line up across a row
+                  even when the blurbs above them run to different lengths. */}
+              {f.visual && <div style={{ marginTop: 'auto' }}>{f.visual}</div>}
             </div>
           ))}
         </div>
@@ -303,12 +313,12 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
 
       {/* How it works */}
       <div style={section}>
-        <h2 style={{ margin: '0 0 28px', fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
+        <h2 style={{ margin: '0 0 28px', fontSize: 'clamp(24px, 2.6vw, 36px)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
           Three steps, five minutes.
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 14 }}>
           {STEPS.map((s) => (
-            <div key={s.n} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-6)', borderRadius: 16, padding: 20 }}>
+            <div key={s.n} style={{ background: 'var(--bg-2)', border: '1px solid var(--bg-6)', borderRadius: 16, padding: 'clamp(20px, 1.7vw, 26px)' }}>
               <div style={{ fontSize: 30, fontWeight: 700, color: 'var(--fg-5)', letterSpacing: '-0.03em', lineHeight: 1 }}>{s.n}</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)', margin: '12px 0 6px' }}>{s.title}</div>
               <div style={{ fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.55 }}>{s.body}</div>
@@ -338,7 +348,7 @@ export function Landing({ enter }: { enter: (kind: 'create' | 'signin' | 'demo')
 
       {/* Final CTA */}
       <div style={{ ...section, textAlign: 'center' }}>
-        <h2 style={{ margin: '0 0 10px', fontFamily: 'var(--font-unbounded)', fontWeight: 700, fontSize: 'clamp(22px, 3.4vw, 34px)', letterSpacing: '-0.03em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
+        <h2 style={{ margin: '0 0 10px', fontFamily: 'var(--font-unbounded)', fontWeight: 700, fontSize: 'clamp(22px, 2.8vw, 40px)', letterSpacing: '-0.03em', color: 'var(--fg-0)', lineHeight: 1.1 }}>
           Bring one month of data. Leave with a plan.
         </h2>
         <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--fg-3)' }}>

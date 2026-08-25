@@ -30,7 +30,7 @@ export async function signUp(
   name: string,
   email: string,
   password: string,
-): Promise<{ error?: string; needsConfirm?: boolean }> {
+): Promise<{ error?: string; needsConfirm?: boolean; alreadyRegistered?: boolean }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -38,11 +38,17 @@ export async function signUp(
       data: { display_name: name },
       // Confirmation links come back to the origin the user signed up on
       // (production, preview, or localhost) instead of the project-wide
-      // Site URL — the origin must be in the auth Redirect URLs allow-list.
+      // Site URL: the origin must be in the auth Redirect URLs allow-list.
       emailRedirectTo: window.location.origin,
     },
   })
   if (error) return { error: error.message }
+  // Signing up with an address that already exists returns a decoy user with
+  // no identities and sends no email (GoTrue hides whether an account exists).
+  // Without this check the UI would promise an inbox message that never comes.
+  if (data.user && !data.session && (data.user.identities?.length ?? 0) === 0) {
+    return { alreadyRegistered: true }
+  }
   if (!data.session) return { needsConfirm: true }
   // Seed the profile with the display name right away.
   await supabase.from('profiles').upsert({ id: data.session.user.id, display_name: name })
@@ -56,6 +62,20 @@ export async function signIn(email: string, password: string): Promise<{ error?:
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut()
+}
+
+/** Sends the reset link. The origin must be in the Redirect URLs allow-list. */
+export async function requestPasswordReset(email: string): Promise<{ error?: string }> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  })
+  return error ? { error: error.message } : {}
+}
+
+/** Sets a new password for the recovery session created by the reset link. */
+export async function updatePassword(password: string): Promise<{ error?: string }> {
+  const { error } = await supabase.auth.updateUser({ password })
+  return error ? { error: error.message } : {}
 }
 
 export async function fetchProfile(userId: string): Promise<Profile> {

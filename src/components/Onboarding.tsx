@@ -112,7 +112,8 @@ export function Onboarding({
   const [password, setPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
-  const [confirmSent, setConfirmSent] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [newPw, setNewPw] = useState('')
 
   const [facts, setFacts] = useState<Facts>(() => factsFromProfile(store.profile))
   const factsDirty = useRef(false)
@@ -178,19 +179,51 @@ export function Onboarding({
   async function submitAuth() {
     setAuthBusy(true)
     setAuthError(null)
+    setNotice(null)
     if (tab === 'create') {
       const res = await store.signUp(name.trim(), email.trim(), password)
       setAuthBusy(false)
       if (res.error) setAuthError(res.error)
-      else if (res.needsConfirm) {
-        setConfirmSent(true)
+      else if (res.alreadyRegistered) {
+        // No confirmation email goes out for an address that already exists,
+        // so send them to sign-in rather than to an inbox with nothing in it.
         setTab('signin')
+        setNotice('That email already has an account. Sign in below, or reset your password.')
+      } else if (res.needsConfirm) {
+        setTab('signin')
+        setNotice('Check your inbox: confirm your email, then sign in here.')
       } else hearth.obNext()
     } else {
       const res = await store.signIn(email.trim(), password)
       setAuthBusy(false)
       if (res.error) setAuthError(res.error)
       else hearth.obNext()
+    }
+  }
+
+  async function sendReset() {
+    if (!email.trim()) {
+      setAuthError('Enter your email address first, then choose Forgot password.')
+      return
+    }
+    setAuthBusy(true)
+    setAuthError(null)
+    setNotice(null)
+    const res = await store.requestPasswordReset(email.trim())
+    setAuthBusy(false)
+    if (res.error) setAuthError(res.error)
+    else setNotice(`Reset link sent to ${email.trim()}. Open it here to set a new password.`)
+  }
+
+  async function submitNewPassword() {
+    setAuthBusy(true)
+    setAuthError(null)
+    const res = await store.completePasswordReset(newPw)
+    setAuthBusy(false)
+    if (res.error) setAuthError(res.error)
+    else {
+      setNewPw('')
+      hearth.obNext()
     }
   }
 
@@ -294,7 +327,37 @@ export function Onboarding({
           ))}
         </div>
 
-        {obStep === 0 && hearth.isAuthed && (
+        {store.recovering && (
+          <>
+            <div style={noteStyle}>
+              You opened a password reset link. Choose a new password and you'll be signed in.
+            </div>
+            <input
+              placeholder="New password (8+ characters)"
+              type="password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              autoComplete="new-password"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newPw.length >= 8 && !authBusy) void submitNewPassword()
+              }}
+              style={inputStyle}
+            />
+            {authError && (
+              <div style={{ fontSize: 12, color: 'var(--accent-red)', lineHeight: 1.4, marginTop: -8 }}>{authError}</div>
+            )}
+            <button
+              onClick={() => void submitNewPassword()}
+              disabled={authBusy || newPw.length < 8}
+              className="h-interactive btn-acc press98"
+              style={{ ...ctaBtn, padding: 12, opacity: authBusy || newPw.length < 8 ? 0.55 : 1 }}
+            >
+              {authBusy ? 'One moment…' : 'Set new password'}
+            </button>
+          </>
+        )}
+
+        {!store.recovering && obStep === 0 && hearth.isAuthed && (
           <>
             <div style={noteStyle}>
               Signed in as <b style={{ color: 'var(--fg-2)' }}>{store.session?.user?.email}</b>. Your
@@ -325,7 +388,7 @@ export function Onboarding({
           </>
         )}
 
-        {obStep === 0 && !hearth.isAuthed && (
+        {!store.recovering && obStep === 0 && !hearth.isAuthed && (
           <>
             <div style={noteStyle}>
               An account keeps your data and answers synced across devices. Or explore the demo first,
@@ -359,9 +422,9 @@ export function Onboarding({
                 )
               })}
             </div>
-            {confirmSent && (
+            {notice && (
               <div style={{ fontSize: 12, color: 'var(--accent-green)', lineHeight: 1.5, background: 'rgba(4,196,10,0.12)', borderRadius: 12, padding: '10px 14px' }}>
-                Check your inbox: confirm your email, then sign in here.
+                {notice}
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -405,6 +468,16 @@ export function Onboarding({
             >
               {authBusy ? 'One moment…' : tab === 'create' ? 'Create account' : 'Sign in'}
             </button>
+            {tab === 'signin' && (
+              <button
+                onClick={() => void sendReset()}
+                disabled={authBusy}
+                className="h-interactive hov-fg1"
+                style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', fontSize: 12, fontWeight: 600, color: 'var(--fg-4)', padding: 0, marginTop: -4 }}
+              >
+                Forgot password?
+              </button>
+            )}
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={hearth.obNext}
