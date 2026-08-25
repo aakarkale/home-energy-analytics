@@ -1,0 +1,134 @@
+/* =====================================================================
+   Kole Jain Design System — Colors + Type
+   Ported from the design handoff:
+   _ds/kole-jain-design-system-bc5cbb25-4103-4c8c-aa51-d04bfd2f8109/colors_and_type.css
+   (fonts are self-hosted via @fontsource instead of the Google Fonts CDN;
+   Hearth uses only DM Sans — the other brand faces fall back to system-ui)
+   ===================================================================== */
+
+:root {
+  /* ---------- Font families (7 brand faces) ---------- */
+  --font-dm-sans:     'DM Sans', system-ui, sans-serif;        /* default */
+  --font-jakarta:     'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-montserrat:  'Montserrat', system-ui, sans-serif;
+  --font-unbounded:   'Unbounded', system-ui, sans-serif;      /* display */
+  --font-geist:       'Geist', system-ui, sans-serif;          /* mono-ish */
+  --font-axiforma:    'Manrope', system-ui, sans-serif;        /* SUB: Axiforma not on Google Fonts */
+  --font-sf-pro:      'Inter', -apple-system, BlinkMacSystemFont, sans-serif; /* SUB: SF Pro is Apple-only */
+
+  /* ---------- Aliases by role ---------- */
+  --font-body:     var(--font-dm-sans);
+  --font-display:  var(--font-unbounded);  /* for hero headlines, editorial */
+  --font-ui:       var(--font-jakarta);    /* for dashboards / SaaS UI */
+  --font-editorial:var(--font-montserrat); /* for long-form / marketing */
+  --font-mono:     var(--font-geist);
+
+  /* ---------- Font weights ---------- */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-black:    800;
+
+  /* ---------- Tracking ---------- */
+  --tracking-tight:   -0.040em; /* display / hero */
+  --tracking-snug:    -0.025em; /* large titles */
+  --tracking-normal:  -0.010em; /* Kole signature on all titles ≥16px */
+  --tracking-body:     0em;
+  --tracking-caps:     0.03em;
+  --tracking-eyebrow:  0.05em;
+
+  /* ---------- Line height ---------- */
+  --lh-tight:  1;     /* Kole defaults everything to 100% */
+  --lh-snug:   1.1;
+  --lh-body:   1.35;
+  --lh-relaxed:1.5;
+
+  /* =====================================================================
+     COLORS — Dark system (primary Kole aesthetic)
+     ===================================================================== */
+  --bg-0: rgb(9,9,9);
+  --bg-1: rgb(16,16,17);
+  --bg-2: rgb(20,20,20);
+  --bg-3: rgb(23,23,23);
+  --bg-4: rgb(31,31,31);
+  --bg-5: rgb(36,36,36);
+  --bg-5b:rgb(38,38,38);
+  --bg-6: rgb(46,46,46);
+
+  --fg-0: rgb(255,255,255);
+  --fg-1: rgb(245,245,245);
+  --fg-2: rgb(180,180,180);
+  --fg-3: rgb(153,153,153);
+  --fg-4: rgb(128,128,128);
+  --fg-5: rgb(81,81,81);
+  --fg-6: rgb(56,56,56);
+
+  /* Accents — use one per object */
+  --accent-yellow:      rgb(255,221,85);
+  --accent-red:         rgb(255,69,56);
+  --accent-coral:       rgb(255,133,115);
+  --accent-violet:      rgb(115,115,255);
+  --accent-blue:        rgb(41,149,255);
+  --accent-green:       rgb(4,196,10);
+  --accent-purple-deep: rgb(34,0,83);
+  --accent-lavender:    rgb(174,134,232);
+  --accent-mint:        rgb(186,254,181);   /* from Every UI Concept */
+  --accent-hot-pink:    rgb(255,0,128);     /* from Every UI Concept */
+
+  /* Transparency glass */
+  --glass-03: rgba(255,255,255,0.03);
+  --glass-04: rgba(255,255,255,0.04);
+  --glass-11: rgba(255,255,255,0.11);
+  --glass-12: rgba(255,255,255,0.12);
+  --glass-14: rgba(255,255,255,0.14);
+  --glass-60: rgba(255,255,255,0.60);
+
+  /* =====================================================================
+     COLORS — Light system (for Every UI Concept / Vibe Coded SaaS)
+     ===================================================================== */
+  --l-bg-0: rgb(255,255,255);
+  --l-bg-1: rgb(247,246,245);
+  --l-bg-2: rgb(246,246,246);
+  --l-bg-3: rgb(242,242,242);
+  --l-bg-4: rgb(240,240,240);
+  --l-bg-5: rgb(235,235,235);
+  --l-bg-6: rgb(217,217,217);
+
+  --l-fg-0: rgb(0,0,0);
+  --l-fg-1: rgb(34,34,34);
+  --l-fg-2: rgb(64,64,64);
+  --l-fg-3: rgb(72,72,72);
+  --l-fg-4: rgb(128,128,128);
+  --l-fg-5: rgb(156,156,156);
+  --l-fg-6: rgb(171,171,171);
+  --l-fg-7: rgb(217,217,217);
+
+  /* Spacing (4-based) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;       /* THE Kole radius */
+  --radius-2xl: 20px;
+  --radius-3xl: 22px;      /* Every UI Concept uses 22.28 */
+  --radius-phone: 47px;
+  --radius-pill: 100px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-glass: inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-pop:   0 8px 24px rgba(0,0,0,0.4);
+  --shadow-card-light: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+}
