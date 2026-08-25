@@ -95,10 +95,18 @@ const ctaBtn: CSSProperties = {
 
 const noteStyle: CSSProperties = { fontSize: 12, color: 'var(--fg-4)', marginTop: -8, lineHeight: 1.5 }
 
-export function Onboarding({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
+export function Onboarding({
+  hearth,
+  store,
+  initialTab = 'create',
+}: {
+  hearth: Hearth
+  store: HearthStore
+  initialTab?: ObTab
+}) {
   const { obStep } = hearth
 
-  const [tab, setTab] = useState<ObTab>('create')
+  const [tab, setTab] = useState<ObTab>(initialTab)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
