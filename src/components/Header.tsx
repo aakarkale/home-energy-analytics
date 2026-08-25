@@ -16,10 +16,12 @@ function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
     >
       {FUEL_TABS.map((ft) => {
         const active = hearth.fuel === ft.id
+        const hasData = !!hearth.bundles[ft.id]
         return (
           <button
             key={ft.id}
             onClick={() => hearth.setFuel(ft.id)}
+            title={hasData ? undefined : 'No data uploaded for this fuel yet'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -33,6 +35,7 @@ function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
               letterSpacing: '-0.01em',
               background: active ? 'var(--bg-5)' : 'transparent',
               color: active ? ft.activeFg : 'var(--fg-4)',
+              opacity: hasData || active ? 1 : 0.6,
               ...(mobile
                 ? { flex: 1, justifyContent: 'center', padding: '7px 12px' }
                 : { padding: '6px 12px' }),
@@ -51,6 +54,8 @@ export function Header({ hearth }: { hearth: Hearth }) {
   const { isMobile, isDesktop } = hearth
   const themeIcon = hearth.light ? 'ph ph-moon' : 'ph ph-sun'
   const themeLabel = hearth.light ? 'Dark mode' : 'Light mode'
+  const title = hearth.page === 'overview' ? hearth.greeting : PAGE_TITLES[hearth.page]
+  const uploadStep = hearth.isAuthed || hearth.hasMyData ? 2 : 0
 
   return (
     <div
@@ -91,20 +96,36 @@ export function Header({ hearth }: { hearth: Hearth }) {
             color: 'var(--fg-0)',
             letterSpacing: '-0.02em',
             lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          {PAGE_TITLES[hearth.page]}
+          {title}
+          {isMobile && hearth.mode === 'demo' && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '.05em',
+                color: 'var(--acc,#ffdd55)',
+                background: 'var(--accSoft,rgba(255,221,85,.13))',
+                borderRadius: 100,
+                padding: '3px 8px',
+              }}
+            >
+              DEMO
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: 5 }}>
-          JUL 25 – AUG 23 · 30 DAYS
-        </div>
+        <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: 5 }}>{hearth.subtitle}</div>
       </div>
 
       {isDesktop && (
         <>
           <FuelTabs hearth={hearth} mobile={false} />
           <button
-            onClick={hearth.openOb}
+            onClick={() => hearth.openOb(uploadStep)}
             className="h-interactive btn-acc press98"
             style={{
               display: 'flex',
@@ -171,7 +192,7 @@ export function Header({ hearth }: { hearth: Hearth }) {
             <i className={themeIcon} />
           </button>
           <button
-            onClick={hearth.openOb}
+            onClick={() => hearth.openOb(uploadStep)}
             style={{
               width: 34,
               height: 34,

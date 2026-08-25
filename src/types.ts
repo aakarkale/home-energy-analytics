@@ -1,20 +1,42 @@
+import type { FuelAnalysis } from './lib/analyze'
+import type { Insight, QDef, SavingItem } from './lib/content'
+import type { AcPlan } from './lib/acplan'
+
 export type Page = 'overview' | 'energy' | 'playbook' | 'activity'
 export type Fuel = 'electric' | 'gas'
 export type Metric = 'usage' | 'cost'
 export type Theme = 'dark' | 'light'
+export type Mode = 'demo' | 'live'
 export type EventFilter = 'All' | 'Spikes' | 'Quiet days' | 'High'
 export type ObTab = 'create' | 'signin'
 
-export interface ObSel {
-  ac: string
-  occ: string
-  home: string
-  extras: Record<string, boolean>
+/** Home facts — each one changes what the engine asks or suggests. */
+export interface Profile {
+  display_name: string | null
+  zip: string | null
+  home_type: string | null
+  ac_type: string | null
+  occupancy: string | null
+  has_ev: boolean
+  has_pool: boolean
+  has_electric_dryer: boolean
 }
 
 export interface EvMetaEntry {
   cause?: string
   away?: boolean
+}
+
+/** Everything computed for one fuel's dashboard. */
+export interface FuelBundle {
+  analysis: FuelAnalysis
+  insights: Insight[]
+  savings: { items: SavingItem[]; total: string }
+  questions: QDef[]
+  fileName: string
+  rangeNote: string
+  totalNote: string
+  uploadId: string | null
 }
 
 /** Everything the pages need: state, derived values and action handlers. */
@@ -24,13 +46,8 @@ export interface Hearth {
   metric: Metric
   theme: Theme
   filter: EventFilter
-  answers: Record<string, string[]>
-  otherDraft: Record<string, string>
-  evMeta: Record<string, EvMetaEntry>
-  obSel: ObSel
   ob: boolean
   obStep: number
-  obTab: ObTab
 
   isDesktop: boolean
   isMobile: boolean
@@ -39,11 +56,34 @@ export interface Hearth {
   acc: string
   accSoft: string
 
+  mode: Mode
+  isAuthed: boolean
+  hasMyData: boolean
+  greeting: string
+  subtitle: string
+  userLabel: { name: string; sub: string; initials: string }
+
+  bundles: Partial<Record<Fuel, FuelBundle>>
+  bundle: FuelBundle | null
+  plan: AcPlan
+  forecastIsSample: boolean
+  zipMissing: boolean
+
+  answers: Record<string, string[]>
+  otherDraft: Record<string, string>
+  evMeta: Record<string, EvMetaEntry>
+
   go: (page: Page) => void
   setFuel: (fuel: Fuel) => void
   setMetric: (metric: Metric) => void
   setFilter: (filter: EventFilter) => void
   toggleTheme: () => void
+  setMode: (mode: Mode) => void
+
+  openOb: (step?: number) => void
+  closeOb: () => void
+  obNext: () => void
+  obBack: () => void
 
   toggleAnswer: (key: string, opt: string, multi: boolean) => void
   removeCustomAnswer: (key: string, opt: string) => void
@@ -51,13 +91,6 @@ export interface Hearth {
   setOtherDraft: (key: string, value: string) => void
   addOther: (key: string, multi: boolean) => void
 
-  setCause: (id: string, cause: string) => void
-  toggleAway: (id: string) => void
-
-  openOb: () => void
-  closeOb: () => void
-  obNext: () => void
-  obBack: () => void
-  setObTab: (tab: ObTab) => void
-  pickObOption: (groupKey: keyof ObSel, opt: string, multi: boolean) => void
+  setCause: (fuel: Fuel, date: string, cause: string) => void
+  toggleAway: (fuel: Fuel, date: string) => void
 }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { EventFilter, Hearth } from '../types'
-import { CAUSE_OPTS, SEV_BG, SEV_COLOR, getEvDefs, getQDefs, questionProgress } from '../model'
+import { CAUSE_OPTS, SEV_BG, SEV_COLOR } from '../model'
+import { EmptyState } from '../components/EmptyState'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -18,18 +19,22 @@ const chipBase: CSSProperties = {
 }
 
 export function Activity({ hearth }: { hearth: Hearth }) {
-  const { elec, acc, accSoft } = hearth
-  const qDefs = getQDefs(elec)
-  const { qProg, qProgW } = questionProgress(hearth.answers, hearth.fuel)
+  const { elec, acc, accSoft, bundle } = hearth
+  if (!bundle) return <EmptyState hearth={hearth} />
+  const a = bundle.analysis
+  const qDefs = bundle.questions
 
-  const evDefs = getEvDefs(elec)
+  const answered = qDefs.filter((q) => hearth.answers[`${hearth.fuel}:${q.id}`]?.length).length
+  const qProg = `${answered} of ${qDefs.length}`
+  const qProgW = qDefs.length ? Math.round((answered / qDefs.length) * 100) + '%' : '0%'
+
   const counts: Record<EventFilter, number> = {
-    All: evDefs.length,
-    Spikes: evDefs.filter((e) => e.type === 'Spike').length,
-    'Quiet days': evDefs.filter((e) => e.type === 'Quiet day').length,
-    High: evDefs.filter((e) => e.sev === 'high').length,
+    All: a.events.length,
+    Spikes: a.events.filter((e) => e.type === 'Spike').length,
+    'Quiet days': a.events.filter((e) => e.type === 'Quiet day').length,
+    High: a.events.filter((e) => e.sev === 'high').length,
   }
-  const events = evDefs.filter((e) => {
+  const events = a.events.filter((e) => {
     if (hearth.filter === 'Spikes') return e.type === 'Spike'
     if (hearth.filter === 'Quiet days') return e.type === 'Quiet day'
     if (hearth.filter === 'High') return e.sev === 'high'
@@ -51,6 +56,11 @@ export function Activity({ hearth }: { hearth: Hearth }) {
         <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: -8 }}>
           The meter can't tell us everything — you supply the causes. Every answer updates your estimates instantly.
         </div>
+        {qDefs.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+            Nothing to ask right now — upload more data and new questions appear as patterns emerge.
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 10 }}>
           {qDefs.map((q) => {
             const key = hearth.fuel + ':' + q.id
@@ -191,9 +201,14 @@ export function Activity({ hearth }: { hearth: Hearth }) {
             })}
           </div>
         </div>
+        {a.events.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+            Nothing flagged — no spikes, quiet days or estimated readings in this period.
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {events.map((e) => {
-            const meta = hearth.evMeta[e.id] || {}
+            const meta = hearth.evMeta[`${hearth.fuel}:${e.date}`] || {}
             const spine = SEV_COLOR[e.sev]
             return (
               <div key={e.id} style={{ display: 'flex', borderRadius: 14, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', overflow: 'hidden' }}>
@@ -216,7 +231,7 @@ export function Activity({ hearth }: { hearth: Hearth }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
                     <select
                       value={meta.cause || 'What caused this?'}
-                      onChange={(ev) => hearth.setCause(e.id, ev.target.value)}
+                      onChange={(ev) => hearth.setCause(hearth.fuel, e.date, ev.target.value)}
                       style={{
                         background: 'var(--bg-4)',
                         color: 'var(--fg-2)',
@@ -238,7 +253,7 @@ export function Activity({ hearth }: { hearth: Hearth }) {
                       <input
                         type="checkbox"
                         checked={!!meta.away}
-                        onChange={() => hearth.toggleAway(e.id)}
+                        onChange={() => hearth.toggleAway(hearth.fuel, e.date)}
                         style={{ accentColor: 'rgb(255,221,85)', width: 14, height: 14, cursor: 'pointer' }}
                       />
                       I was away
