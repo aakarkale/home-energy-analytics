@@ -240,9 +240,9 @@ export function Energy({ hearth }: { hearth: Hearth }) {
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
                 {a.weekendDeltaPct > 0
-                  ? `Weekends run ${a.weekendDeltaPct}% higher — someone's home.`
+                  ? `Weekends run ${a.weekendDeltaPct}% higher. Someone's home.`
                   : a.weekendDeltaPct < 0
-                    ? `Weekdays run ${-a.weekendDeltaPct}% higher — worth checking what runs while you're out.`
+                    ? `Weekdays run ${-a.weekendDeltaPct}% higher. Worth checking what runs while you're out.`
                     : 'Weekends and weekdays run about even.'}
               </div>
             </div>
@@ -253,7 +253,7 @@ export function Energy({ hearth }: { hearth: Hearth }) {
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Peak vs. off-peak spend</div>
                 <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>
-                  ${a.tou.peakRate.toFixed(2)} peak · ${a.tou.offRate.toFixed(2)} off-peak · {a.tou.premiumPct}% premium — read from your own bill
+                  ${a.tou.peakRate.toFixed(2)} peak · ${a.tou.offRate.toFixed(2)} off-peak · {a.tou.premiumPct}% premium, read from your own bill
                 </div>
               </div>
               <div style={{ display: 'flex', height: 14, borderRadius: 100, overflow: 'hidden', gap: 2 }}>
@@ -274,7 +274,7 @@ export function Energy({ hearth }: { hearth: Hearth }) {
           ) : (
             <div style={{ ...card, padding: 24, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
               <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-              Your cost column looks flat-rate — no time-of-use peak window detected, so peak-shifting advice doesn't apply to this plan.
+              Your cost column looks flat-rate: no time-of-use peak window detected, so peak-shifting advice doesn't apply to this plan.
             </div>
           )}
         </>

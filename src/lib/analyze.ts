@@ -229,7 +229,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
           type: 'Spike',
           title: `Evening spike · ${fmtDayShort(d)}`,
           cost: `+$${(e.cost - evMedCost).toFixed(2)}`,
-          detail: `${a.tou.label} ran ${ratio.toFixed(1)}× your usual evening — ${e.kwh.toFixed(1)} ${unit} in ${hours} hours, right inside the peak window.`,
+          detail: `${a.tou.label} ran ${ratio.toFixed(1)}× your usual evening: ${e.kwh.toFixed(1)} ${unit} in ${hours} hours, right inside the peak window.`,
           tip: `If this was laundry or oven + AC together, staggering them past ${hourLabel(endHour + 1)} would have cost ${a.tou.premiumPct}% less.`,
         })
       }
@@ -249,7 +249,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
           type: 'Spike',
           title: `High day · ${fmtDayShort(p.d)}`,
           cost: `+$${Math.max(0, p.cost - medCost).toFixed(2)}`,
-          detail: `${fmtNum(p.usage, 0)} ${unit} — ${abovePct}% above a typical ${weekdayName(p.d)}. Spread across the whole day rather than one hour.`,
+          detail: `${fmtNum(p.usage, 0)} ${unit}, ${abovePct}% above a typical ${weekdayName(p.d)}. Spread across the whole day rather than one hour.`,
           tip: 'Whole-day highs usually mean AC on a hot day. Check the playbook pre-cool for days like this.',
         })
       } else {
@@ -260,7 +260,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
           type: 'Spike',
           title: `High gas day · ${fmtDayShort(p.d)}`,
           cost: `+$${Math.max(0, p.cost - medCost).toFixed(2)}`,
-          detail: `${p.usage.toFixed(1)} therms — about ${ratio >= 1.75 && ratio <= 2.5 ? 'double' : ratio.toFixed(1) + '×'} a normal active day.`,
+          detail: `${p.usage.toFixed(1)} therms, about ${ratio >= 1.75 && ratio <= 2.5 ? 'double' : ratio.toFixed(1) + '×'} a normal active day.`,
           tip: 'One-off gas highs are usually hot water: guests, laundry, long showers.',
         })
       }
@@ -273,7 +273,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
         type: 'Quiet day',
         title: `Quiet day · ${fmtDayShort(p.d)}`,
         cost: `−$${Math.max(0, medCost - p.cost).toFixed(2)}`,
-        detail: `${fmtNum(p.usage, 0)} ${unit}, ${belowPct}% below normal — this is close to your true always-on baseline.`,
+        detail: `${fmtNum(p.usage, 0)} ${unit}, ${belowPct}% below normal. This is close to your true always-on baseline.`,
         tip: 'Days like this are gold: mark "I was away" and we measure your phantom load precisely.',
       })
     }
@@ -316,7 +316,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
         type: 'Quiet day',
         title: `${e - s + 1} near-zero days in a row`,
         cost: '—',
-        detail: `${fmtMonthDay(a.daily[s].d)}–${fmtMonthDay(a.daily[e].d)} used almost no gas — heating off, minimal hot water.`,
+        detail: `${fmtMonthDay(a.daily[s].d)}–${fmtMonthDay(a.daily[e].d)} used almost no gas: heating off, minimal hot water.`,
         tip: 'A healthy summer pattern. If winter shows this, check the pilot light.',
       })
     }

@@ -83,7 +83,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
     return (
       <div style={{ ...card, padding: 24, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
         <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-        Rates are read from the cost column of an hourly electricity export — upload one and this page
+        Rates are read from the cost column of an hourly electricity export. Upload one and this page
         fills in with your plan's price levels, hour-by-hour effective rates and baseline allowance.
       </div>
     )
@@ -136,7 +136,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
             Your price has {r.hasTiers ? 'four' : 'two'} levels
           </div>
           <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>
-            Effective prices from your own bill — all charges included, so they won't match a published tariff line item
+            Effective prices from your own bill: all charges included, so they won't match a published tariff line item
           </div>
         </div>
 
@@ -168,12 +168,12 @@ export function Rates({ hearth }: { hearth: Hearth }) {
           {r.premiumBelow !== null && (
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: '4px 11px' }}>
               Peak premium ≈ ${(r.premiumAbove ?? r.premiumBelow).toFixed(3)}/kWh
-              {r.hasTiers ? ' in either tier — timing and volume are separate levers' : ''}
+              {r.hasTiers ? ' in either tier; timing and volume are separate levers' : ''}
             </span>
           )}
           {r.hasTiers && r.tierStepOffPct !== null && (
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: '4px 11px' }}>
-              Tier step +{r.tierStepOffPct}% off-peak · +{r.tierStepPeakPct ?? '—'}% peak — volume matters slightly more than timing
+              Tier step +{r.tierStepOffPct}% off-peak · +{r.tierStepPeakPct ?? '—'}% peak: volume matters slightly more than timing
             </span>
           )}
         </div>
@@ -185,7 +185,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Hour by hour</div>
             <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: 3 }}>
-              The rate you pay and the load you run, on the same clock — over {r.daysSpanned} days
+              The rate you pay and the load you run, on the same clock, over {r.daysSpanned} days
             </div>
           </div>
           <div style={{ display: 'flex', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 3, gap: 2 }}>
@@ -429,7 +429,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
             </div>
             <div style={{ fontSize: 13, color: 'var(--fg-2)', marginTop: 5, lineHeight: 1.55 }}>
               {hourLabel(h1)} and {hourLabel(h2)} average {r.hours[h1].avgKwh.toFixed(2)} and{' '}
-              {r.hours[h2].avgKwh.toFixed(2)} kWh — and together they cost{' '}
+              {r.hours[h2].avgKwh.toFixed(2)} kWh, and together they cost{' '}
               <b style={{ color: 'var(--fg-0)' }}>{fmtMoney0(topTwoCost)}</b> over {r.daysSpanned} days.
               {r.cheaperNeighbor && (
                 <>
@@ -445,7 +445,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
             {r.cheaperNeighbor && (
               <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: 6 }}>
                 That single comparison is the whole argument for finishing heavy loads before{' '}
-                {hourLabel(tou.startHour)} — see the AC Playbook's pre-cool block.
+                {hourLabel(tou.startHour)}. See the AC Playbook's pre-cool block.
               </div>
             )}
           </div>
@@ -466,7 +466,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
               </div>
             </div>
             <div style={{ fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.55 }}>
-              The first block of every billing cycle is billed at the lower tier — a fixed discount that
+              The first block of every billing cycle is billed at the lower tier: a fixed discount that
               resets with the cycle, not a budget. Your data shows the step happening at:
             </div>
             {al.crossings.map((c) => (
@@ -504,7 +504,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
                   ≈ {fmtMoney0(al.cycleValue)}/cycle
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>
-                  fixed — it doesn't grow by using less
+                  fixed: it doesn't grow by using less
                 </div>
               </div>
               <div style={{ borderRadius: 12, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', padding: '12px 14px' }}>
@@ -551,14 +551,14 @@ export function Rates({ hearth }: { hearth: Hearth }) {
         ) : (
           <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
             <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-            A tier step shows in your prices, but no clean cycle crossing could be pinned down — set your
+            A tier step shows in your prices, but no clean cycle crossing could be pinned down. Set your
             billing cycle in setup and the allowance estimate appears here.
           </div>
         )
       ) : (
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
-          No tier step detected — either this plan isn't tiered, or usage stayed within the baseline
+          No tier step detected: either this plan isn't tiered, or usage stayed within the baseline
           allowance for the whole period. {a.tou ? 'The peak window above is the lever that matters.' : ''}
         </div>
       )}

@@ -54,11 +54,11 @@ export function Activity({ hearth }: { hearth: Hearth }) {
           </div>
         </div>
         <div style={{ fontSize: 12, color: 'var(--fg-4)', marginTop: -8 }}>
-          The meter can't tell us everything — you supply the causes. Every answer updates your estimates instantly.
+          The meter can't tell us everything, so you supply the causes. Every answer updates your estimates instantly.
         </div>
         {qDefs.length === 0 && (
           <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
-            Nothing to ask right now — upload more data and new questions appear as patterns emerge.
+            Nothing to ask right now. Upload more data and new questions appear as patterns emerge.
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 10 }}>
@@ -203,7 +203,7 @@ export function Activity({ hearth }: { hearth: Hearth }) {
         </div>
         {a.events.length === 0 && (
           <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
-            Nothing flagged — no spikes, quiet days or estimated readings in this period.
+            Nothing flagged: no spikes, quiet days or estimated readings in this period.
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -145,7 +145,7 @@ export function buildInsights(a: FuelAnalysis, profile: Profile | null): Insight
         color: modest ? 'rgb(4,196,10)' : 'rgb(255,133,115)',
         title: modest ? 'Your always-on load is modest' : 'Your always-on load runs high',
         chip: '',
-        body: `${a.alwaysOn.kwhPerHr.toFixed(2)} kWh every hour — about ${fmtMoney0(a.alwaysOn.monthlyCost)}/mo of standby. ${modest ? 'Below' : 'Above'} typical for ${homeNoun(profile)}.`,
+        body: `${a.alwaysOn.kwhPerHr.toFixed(2)} kWh every hour, about ${fmtMoney0(a.alwaysOn.monthlyCost)}/mo of standby. ${modest ? 'Below' : 'Above'} typical for ${homeNoun(profile)}.`,
       })
     }
     if (out.length < 3 && Math.abs(a.weekendDeltaPct) >= 8) {
@@ -161,9 +161,9 @@ export function buildInsights(a: FuelAnalysis, profile: Profile | null): Insight
         body:
           a.weekendDeltaPct > 0
             ? home
-              ? 'Consistent with being away 9–5 on weekdays — weekend daytime use is where flexible loads can shift.'
-              : 'Someone’s home — weekend daytime hours are where flexible loads can shift.'
-            : 'Unusual for a home — worth checking what runs on weekdays while you’re out.',
+              ? 'Consistent with being away 9–5 on weekdays. Weekend daytime use is where flexible loads can shift.'
+              : 'Someone’s home. Weekend daytime hours are where flexible loads can shift.'
+            : 'Unusual for a home. Worth checking what runs on weekdays while you’re out.',
       })
     }
     if (out.length < 3 && a.quietest) {
@@ -182,7 +182,7 @@ export function buildInsights(a: FuelAnalysis, profile: Profile | null): Insight
         color: 'rgb(41,149,255)',
         title: 'Summer gas is mostly hot water',
         chip: '',
-        body: `Heating is off — the steady ~${a.activeGas.avgWhenOn.toFixed(2)} therm days are your water heater and stove.`,
+        body: `Heating is off. The steady ~${a.activeGas.avgWhenOn.toFixed(2)} therm days are your water heater and stove.`,
       })
       out.push({
         icon: 'ph-fill ph-check-circle',
@@ -198,7 +198,7 @@ export function buildInsights(a: FuelAnalysis, profile: Profile | null): Insight
         color: 'rgb(255,133,115)',
         title: `One unusual day: ${fmtMonthDay(a.gasSpike.date)}`,
         chip: '',
-        body: `${a.gasSpike.therms.toFixed(1)} therms — about ${a.gasSpike.ratio >= 1.75 ? 'double' : a.gasSpike.ratio.toFixed(1) + '×'} a normal active day. Guests, extra laundry, or a long shower marathon?`,
+        body: `${a.gasSpike.therms.toFixed(1)} therms, about ${a.gasSpike.ratio >= 1.75 ? 'double' : a.gasSpike.ratio.toFixed(1) + '×'} a normal active day. Guests, extra laundry, or a long shower marathon?`,
       })
     }
   }
@@ -233,7 +233,7 @@ export function buildQuestions(a: FuelAnalysis, profile: Profile | null): QDef[]
         id: 'spike-cause',
         tag: 'Spike',
         money: ifWeekly >= 5 ? `the ${fmtMoney0(ifWeekly)}/yr question` : '',
-        text: `Your sharpest spike was ${fmtDayShort(a.sharpest.date)} around ${hourLabel(a.sharpest.hour)} — ${a.sharpest.kwh.toFixed(1)} kWh, about ${a.sharpest.ratio.toFixed(1)}× normal. What ran then?`,
+        text: `Your sharpest spike was ${fmtDayShort(a.sharpest.date)} around ${hourLabel(a.sharpest.hour)}: ${a.sharpest.kwh.toFixed(1)} kWh, about ${a.sharpest.ratio.toFixed(1)}× normal. What ran then?`,
         opts: ['AC', 'Laundry', 'Oven', profile?.has_ev ? 'EV charging' : 'Dishwasher', 'Not sure'],
       })
     }
