@@ -1,7 +1,8 @@
-// Demo dataset — an exact port of the seeded generators in the Hearth App
-// design prototype, so every number on screen matches the design.
-// Electric: 30 days normalized to 1,687.8 kWh / $686.10 (avg rate $0.4065/kWh
-// before cost renormalization). Gas: 24.3 therms / $38.20.
+// Seeded demo series (Park–Miller LCG) — the same deterministic sample home
+// the design prototype ships: 30 days, Jul 25 – Aug 23 2026, normalized to
+// 1,687.8 kWh / $686.10 electric and 24.3 therms / $38.20 gas. sample.ts
+// renders these as Green Button CSVs so demo mode exercises the real
+// parser + analysis engine end to end.
 
 export interface DayDatum {
   dt: Date
@@ -11,15 +12,11 @@ export interface DayDatum {
 }
 
 export interface EnergyDataset {
-  /** Electric daily series, Jul 25 – Aug 23, 2026 (30 days). */
   days: DayDatum[]
-  /** Gas daily series over the same window. */
   gdays: DayDatum[]
-  /** Typical hourly load-shape profile (24 relative values). */
   prof: number[]
 }
 
-/** Park–Miller LCG — same generator the prototype uses (deterministic). */
 export function makeRng(seed: number): () => number {
   let s = seed
   return () => (s = (s * 16807) % 2147483647) / 2147483647
@@ -76,59 +73,4 @@ export function getDataset(): EnergyDataset {
 
   cached = { days, gdays, prof }
   return cached
-}
-
-export interface HeatCell {
-  c: string
-  ring: string
-  tip: string
-}
-
-export interface HeatRow {
-  label: string
-  cells: HeatCell[]
-}
-
-/**
- * Hourly heatmap for the last 14 electric days (seed 11, same call order as
- * the prototype: one draw per cell, spike override after the draw).
- */
-export function buildHeatRows(light: boolean): { heatRows: HeatRow[]; ramp: string[] } {
-  const D = getDataset()
-  const ramp = [
-    light ? '#ecece7' : 'rgb(23,23,23)',
-    light ? '#c9d9ef' : 'rgb(21,38,62)',
-    'rgb(24,74,106)',
-    'rgb(31,116,96)',
-    'rgb(122,160,58)',
-    'rgb(217,161,59)',
-    'rgb(224,100,47)',
-    'rgb(210,59,59)',
-  ]
-  const r3 = makeRng(11)
-  const heatRows = D.days.slice(-14).map((d, ri) => {
-    const f = d.usage / 56
-    return {
-      label: d.dt
-        .toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
-        .replace(',', ''),
-      cells: D.prof.map((pv, h) => {
-        let v = pv * f * (0.8 + r3() * 0.4)
-        const spike = ri === 10 && h >= 17 && h <= 19
-        if (spike) v = 6.5
-        const t = Math.min(1, v / 5.6)
-        const c = ramp[Math.min(7, Math.floor(t * 8))]
-        return {
-          c,
-          ring: spike
-            ? light
-              ? '0 0 0 1.5px rgb(10,10,10)'
-              : '0 0 0 1.5px rgb(245,245,245)'
-            : 'none',
-          tip: v.toFixed(1) + ' kWh · ' + (h % 12 || 12) + (h < 12 ? ' AM' : ' PM'),
-        }
-      }),
-    }
-  })
-  return { heatRows, ramp }
 }

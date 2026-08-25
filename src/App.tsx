@@ -1,6 +1,12 @@
-import { useState, type CSSProperties } from 'react'
-import type { EvMetaEntry, EventFilter, Fuel, Hearth, Metric, ObSel, ObTab, Page, Theme } from './types'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, Page, Theme } from './types'
 import { useMediaQuery } from './hooks'
+import { useHearthStore } from './store'
+import { analyzeFuel } from './lib/analyze'
+import { buildInsights, buildQuestions, buildSavings, precoolEstimate } from './lib/content'
+import { buildAcPlan } from './lib/acplan'
+import { SAMPLE_FORECAST } from './lib/sample'
+import { fmtMoney, fmtMonthDay, fmtNum } from './lib/format'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { MobileTabBar } from './components/MobileTabBar'
@@ -13,7 +19,13 @@ import { Activity } from './pages/Activity'
 const THEME_KEY = 'hearth-theme'
 const SETUP_KEY = 'hearth-setup-done'
 
+function partOfDay(): string {
+  const h = new Date().getHours()
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
+}
+
 export default function App() {
+  const store = useHearthStore()
   const isDesktop = useMediaQuery('(min-width: 860px)')
   const isMobile = !isDesktop
 
@@ -28,8 +40,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('overview')
   const [fuel, setFuel] = useState<Fuel>('electric')
   const [metric, setMetric] = useState<Metric>('usage')
-  // The prototype exposes startWithOnboarding as a canvas prop; in the real
-  // app the equivalent is "open setup on first visit".
+  const [filter, setFilter] = useState<EventFilter>('All')
   const [ob, setOb] = useState<boolean>(() => {
     try {
       return localStorage.getItem(SETUP_KEY) !== '1'
@@ -38,17 +49,7 @@ export default function App() {
     }
   })
   const [obStep, setObStep] = useState(0)
-  const [obTab, setObTab] = useState<ObTab>('create')
-  const [filter, setFilter] = useState<EventFilter>('All')
-  const [answers, setAnswers] = useState<Record<string, string[]>>({})
   const [otherDraft, setOtherDraftState] = useState<Record<string, string>>({})
-  const [evMeta, setEvMeta] = useState<Record<string, EvMetaEntry>>({})
-  const [obSel, setObSel] = useState<ObSel>({
-    ac: 'Central AC',
-    occ: 'Away 9–5',
-    home: 'House',
-    extras: {},
-  })
 
   const elec = fuel === 'electric'
   const light = theme === 'light'
@@ -67,19 +68,87 @@ export default function App() {
       ? 'rgba(10,110,220,0.10)'
       : 'rgba(41,149,255,0.14)'
 
+  // Run the engine over whichever uploads the active mode provides.
+  const bundles = useMemo(() => {
+    const out: Partial<Record<Fuel, FuelBundle>> = {}
+    for (const f of ['electric', 'gas'] as Fuel[]) {
+      const rec = store.uploads[f]
+      if (!rec) continue
+      const analysis = analyzeFuel(rec.parsed, rec.billing)
+      out[f] = {
+        analysis,
+        insights: buildInsights(analysis, store.profile),
+        savings: buildSavings(analysis, store.profile),
+        questions: buildQuestions(analysis, store.profile),
+        fileName: rec.parsed.fileName,
+        rangeNote: `${fmtMonthDay(analysis.periodStart)} – ${fmtMonthDay(analysis.periodEnd)} · ${analysis.granularity} · ${rec.parsed.rowCount} rows`,
+        totalNote: `${fmtNum(analysis.totalUsage, 1)} ${analysis.unit} · ${fmtMoney(analysis.totalCost)}`,
+        uploadId: rec.id,
+      }
+    }
+    return out
+  }, [store.uploads, store.profile])
+
+  // Until the user explicitly picks a fuel, follow whichever one has data —
+  // an explicit pick sticks so the empty state stays reachable.
+  const userPickedFuel = useRef(false)
+  useEffect(() => {
+    if (userPickedFuel.current) return
+    if (!bundles[fuel]) {
+      const other: Fuel = fuel === 'electric' ? 'gas' : 'electric'
+      if (bundles[other]) setFuel(other)
+    }
+  }, [bundles, fuel])
+
+  const forecast = store.mode === 'demo' ? SAMPLE_FORECAST : store.forecast
+  const plan = useMemo(
+    () =>
+      buildAcPlan(
+        bundles.electric?.analysis ?? null,
+        store.profile,
+        forecast,
+        bundles.electric ? precoolEstimate(bundles.electric.analysis, store.profile) : null,
+      ),
+    [bundles.electric, store.profile, forecast],
+  )
+
+  const bundle = bundles[fuel] ?? null
+  const isAuthed = !!store.session
+
+  const firstName =
+    store.mode === 'demo'
+      ? 'Sam'
+      : (store.profile.display_name?.trim().split(/\s+/)[0] ??
+        store.session?.user?.email?.split('@')[0] ??
+        'there')
+  const greeting = `Good ${partOfDay()}, ${firstName}`
+
+  const email = store.session?.user?.email ?? ''
+  const userLabel =
+    store.mode === 'demo'
+      ? { name: 'Demo home', sub: 'Sample data', initials: 'DH' }
+      : isAuthed
+        ? {
+            name: store.profile.display_name || email,
+            sub: email,
+            initials:
+              (store.profile.display_name || email)
+                .split(/[\s@._-]+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((s) => s[0]!.toUpperCase())
+                .join('') || 'ME',
+          }
+        : { name: 'Guest', sub: 'Data stays in this browser', initials: 'G' }
+
   const hearth: Hearth = {
     page,
     fuel,
     metric,
     theme,
     filter,
-    answers,
-    otherDraft,
-    evMeta,
-    obSel,
     ob,
     obStep,
-    obTab,
 
     isDesktop,
     isMobile,
@@ -88,8 +157,28 @@ export default function App() {
     acc,
     accSoft,
 
+    mode: store.mode,
+    isAuthed,
+    hasMyData: store.hasMyData,
+    greeting,
+    subtitle: bundle ? bundle.analysis.rangeLabel : 'NO DATA YET',
+    userLabel,
+
+    bundles,
+    bundle,
+    plan,
+    forecastIsSample: store.mode === 'demo',
+    zipMissing: store.mode === 'live' && !store.profile.zip,
+
+    answers: store.answers,
+    otherDraft,
+    evMeta: store.evMeta,
+
     go: (p) => setPage(p),
-    setFuel,
+    setFuel: (f) => {
+      userPickedFuel.current = true
+      setFuel(f)
+    },
     setMetric,
     setFilter,
     toggleTheme: () => {
@@ -101,66 +190,11 @@ export default function App() {
       }
       setTheme(t)
     },
+    setMode: store.setMode,
 
-    toggleAnswer: (key, opt, multi) => {
-      setAnswers((prev) => {
-        const a = { ...prev }
-        let cur = a[key] || []
-        const on = cur.includes(opt)
-        if (multi) {
-          cur = on ? cur.filter((x) => x !== opt) : [...cur, opt]
-        } else {
-          cur = on ? [] : [opt]
-        }
-        if (cur.length) a[key] = cur
-        else delete a[key]
-        return a
-      })
-    },
-    removeCustomAnswer: (key, opt) => {
-      setAnswers((prev) => {
-        const a = { ...prev }
-        const cur = (a[key] || []).filter((x) => x !== opt)
-        if (cur.length) a[key] = cur
-        else delete a[key]
-        return a
-      })
-    },
-    clearAnswer: (key) => {
-      setAnswers((prev) => {
-        const a = { ...prev }
-        delete a[key]
-        return a
-      })
-    },
-    setOtherDraft: (key, value) => {
-      setOtherDraftState((prev) => ({ ...prev, [key]: value.slice(0, 15) }))
-    },
-    addOther: (key, multi) => {
-      const v = (otherDraft[key] || '').trim().slice(0, 15)
-      if (!v) return
-      setAnswers((prev) => {
-        const a = { ...prev }
-        let cur = a[key] || []
-        if (!cur.includes(v)) {
-          cur = multi ? [...cur, v] : [v]
-        }
-        a[key] = cur
-        return a
-      })
-      setOtherDraftState((prev) => ({ ...prev, [key]: '' }))
-    },
-
-    setCause: (id, cause) => {
-      setEvMeta((prev) => ({ ...prev, [id]: { ...prev[id], cause } }))
-    },
-    toggleAway: (id) => {
-      setEvMeta((prev) => ({ ...prev, [id]: { ...prev[id], away: !prev[id]?.away } }))
-    },
-
-    openOb: () => {
+    openOb: (step = 0) => {
+      setObStep(step)
       setOb(true)
-      setObStep(0)
     },
     closeOb: () => {
       try {
@@ -172,17 +206,35 @@ export default function App() {
     },
     obNext: () => setObStep((s) => Math.min(3, s + 1)),
     obBack: () => setObStep((s) => Math.max(0, s - 1)),
-    setObTab,
-    pickObOption: (groupKey, opt, multi) => {
-      setObSel((prev) => {
-        const sel = { ...prev }
-        if (multi) {
-          sel.extras = { ...sel.extras, [opt]: !sel.extras[opt] }
-        } else if (groupKey !== 'extras') {
-          sel[groupKey] = opt
-        }
-        return sel
-      })
+
+    toggleAnswer: (key, opt, multi) => {
+      const cur = store.answers[key] || []
+      const on = cur.includes(opt)
+      const next = multi ? (on ? cur.filter((x) => x !== opt) : [...cur, opt]) : on ? [] : [opt]
+      store.setAnswerValue(key, next.length ? next : null)
+    },
+    removeCustomAnswer: (key, opt) => {
+      const next = (store.answers[key] || []).filter((x) => x !== opt)
+      store.setAnswerValue(key, next.length ? next : null)
+    },
+    clearAnswer: (key) => store.setAnswerValue(key, null),
+    setOtherDraft: (key, value) =>
+      setOtherDraftState((prev) => ({ ...prev, [key]: value.slice(0, 15) })),
+    addOther: (key, multi) => {
+      const v = (otherDraft[key] || '').trim().slice(0, 15)
+      if (!v) return
+      const cur = store.answers[key] || []
+      if (!cur.includes(v)) store.setAnswerValue(key, multi ? [...cur, v] : [v])
+      setOtherDraftState((prev) => ({ ...prev, [key]: '' }))
+    },
+
+    setCause: (f, date, cause) => {
+      const meta = store.evMeta[`${f}:${date}`] || {}
+      store.setEvMeta(f, date, { ...meta, cause })
+    },
+    toggleAway: (f, date) => {
+      const meta = store.evMeta[`${f}:${date}`] || {}
+      store.setEvMeta(f, date, { ...meta, away: !meta.away })
     },
   }
 
@@ -207,7 +259,7 @@ export default function App() {
       }
     >
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {isDesktop && <Sidebar hearth={hearth} />}
+        {isDesktop && <Sidebar hearth={hearth} store={store} />}
 
         <div
           style={{
@@ -231,7 +283,7 @@ export default function App() {
                 paddingBottom: isMobile ? 90 : 24,
               }}
             >
-              {page === 'overview' && <Overview hearth={hearth} />}
+              {page === 'overview' && <Overview hearth={hearth} store={store} />}
               {page === 'energy' && <Energy hearth={hearth} />}
               {page === 'playbook' && <Playbook hearth={hearth} />}
               {page === 'activity' && <Activity hearth={hearth} />}
@@ -242,7 +294,7 @@ export default function App() {
         </div>
       </div>
 
-      {ob && <Onboarding hearth={hearth} />}
+      {ob && <Onboarding hearth={hearth} store={store} />}
     </div>
   )
 }
