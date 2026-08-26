@@ -7,7 +7,8 @@ import { useMemo, type CSSProperties, type ReactNode } from 'react'
 import { sampleUploads, SAMPLE_BILLING } from '../lib/sample'
 import { analyzeFuel } from '../lib/analyze'
 import { seriesPath } from '../lib/svg'
-import { fmtMoney, fmtNum } from '../lib/format'
+import { fmtMoney, fmtMonthDay, fmtNum } from '../lib/format'
+import { HoverChart } from './chart'
 
 // Wide-screen behavior: content widens with the viewport up to 1440px, then
 // stays centered — grids gain columns as room appears, text measures stay
@@ -96,10 +97,32 @@ function HeroPreview() {
           {kpi('Total cost', fmtMoney(a.totalCost), '')}
           {kpi('Always-on', a.alwaysOn ? a.alwaysOn.kwhPerHr.toFixed(2) : '—', 'kWh/hr')}
         </div>
-        <svg viewBox="0 0 640 130" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
-          <path d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
-          <path d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
-        </svg>
+        <HoverChart
+          count={a.daily.length}
+          xAt={(i) => mini.pts[i][0] / 640}
+          label="Daily usage for the demo home"
+          tipTop={-4}
+          tip={(i) => ({
+            title: fmtMonthDay(a.daily[i].d),
+            rows: [
+              { value: `${fmtNum(a.daily[i].usage, 1)} ${a.unit}`, label: 'usage', color: 'rgb(255,221,85)' },
+              { value: fmtMoney(a.daily[i].cost), label: 'cost', color: 'rgb(174,134,232)' },
+            ],
+          })}
+        >
+          {(hover) => (
+            <svg viewBox="0 0 640 130" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
+              <path className="h-area" d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
+              <path className="h-draw" pathLength={1} d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
+              {hover !== null && (
+                <>
+                  <line x1={mini.pts[hover][0]} y1={2} x2={mini.pts[hover][0]} y2={128} stroke="var(--fg-5)" strokeWidth="1" strokeDasharray="3 3" />
+                  <circle cx={mini.pts[hover][0]} cy={mini.pts[hover][1]} r="3" fill="var(--acc,#ffdd55)" stroke="var(--bg-2)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                </>
+              )}
+            </svg>
+          )}
+        </HoverChart>
         {a.tou && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', height: 10, borderRadius: 100, overflow: 'hidden', gap: 2 }}>

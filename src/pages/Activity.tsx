@@ -48,7 +48,7 @@ export function Activity({ hearth }: { hearth: Hearth }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Sharpen your tips</div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 110, height: 5, borderRadius: 100, background: 'var(--bg-4)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'var(--acc,#ffdd55)', borderRadius: 100, width: qProgW }} />
+              <div className="h-wipe" style={{ height: '100%', background: 'var(--acc,#ffdd55)', borderRadius: 100, width: qProgW }} />
             </div>
             <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{qProg} answered</span>
           </div>
@@ -207,11 +207,15 @@ export function Activity({ hearth }: { hearth: Hearth }) {
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {events.map((e) => {
+          {events.map((e, ei) => {
             const meta = hearth.evMeta[`${hearth.fuel}:${e.date}`] || {}
             const spine = SEV_COLOR[e.sev]
             return (
-              <div key={e.id} style={{ display: 'flex', borderRadius: 14, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', overflow: 'hidden' }}>
+              <div
+                key={e.id}
+                className="h-fade-up h-lift"
+                style={{ display: 'flex', borderRadius: 14, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', overflow: 'hidden', animationDelay: `${Math.min(ei, 8) * 55}ms` }}
+              >
                 <div style={{ width: 4, flex: 'none', background: spine }} />
                 <div style={{ flex: 1, minWidth: 0, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

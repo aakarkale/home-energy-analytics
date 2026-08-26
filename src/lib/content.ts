@@ -20,6 +20,8 @@ export interface SavingItem {
   label: string
   amt: string
   w: string
+  /** How the figure was derived, revealed on hover/focus. */
+  note: string
 }
 
 export interface QDef {
@@ -34,6 +36,7 @@ export interface QDef {
 interface SavingEst {
   label: string
   perYr: number
+  note: string
 }
 
 function homeNoun(profile: Profile | null): string {
@@ -60,6 +63,7 @@ function estimateSavings(a: FuelAnalysis, profile: Profile | null): SavingEst[] 
       ests.push({
         label: `Shift flexible loads off ${a.tou.label}`,
         perYr: 0.4 * a.tou.peakKwhPerDay * premium * 365,
+        note: `40% of your ${a.tou.peakKwhPerDay.toFixed(1)} kWh average peak load moved off-peak, at the $${premium.toFixed(2)}/kWh premium your bill shows.`,
       })
       if (hasAC && a.granularity === 'hourly') {
         // Cooling load ≈ hot-day minus mild-day delta — never a flat share of
@@ -72,7 +76,11 @@ function estimateSavings(a: FuelAnalysis, profile: Profile | null): SavingEst[] 
           hot.reduce((x, y) => x + y, 0) / (hot.length || 1) -
             mild.reduce((x, y) => x + y, 0) / (mild.length || 1),
         )
-        ests.push({ label: 'Pre-cool before the peak', perYr: 0.3 * coolingDelta * premium * 120 })
+        ests.push({
+          label: 'Pre-cool before the peak',
+          perYr: 0.3 * coolingDelta * premium * 120,
+          note: `30% of your ${coolingDelta.toFixed(1)} kWh hot-day cooling load shifted, over ~120 warm days.`,
+        })
       }
     }
     if (a.alwaysOn) {
@@ -82,6 +90,7 @@ function estimateSavings(a: FuelAnalysis, profile: Profile | null): SavingEst[] 
       ests.push({
         label: 'Trim always-on phantom load',
         perYr: 0.15 * a.alwaysOn.kwhPerHr * 24 * 365 * offRate,
+        note: `15% of your ${a.alwaysOn.kwhPerHr.toFixed(2)} kWh/hr standby baseline, priced at the off-peak rate.`,
       })
     }
   } else {
@@ -89,15 +98,27 @@ function estimateSavings(a: FuelAnalysis, profile: Profile | null): SavingEst[] 
     // annualize honestly; heating-season load is deliberately excluded.
     const annualHotWater = a.days ? a.totalCost * (365 / a.days) * 0.85 : 0
     if (annualHotWater > 0) {
-      ests.push({ label: 'Shorter showers, same comfort', perYr: 0.15 * annualHotWater })
-      ests.push({ label: 'Wash clothes cold', perYr: 0.08 * annualHotWater })
+      ests.push({
+        label: 'Shorter showers, same comfort',
+        perYr: 0.15 * annualHotWater,
+        note: '15% of annualised hot-water gas. Heating-season load is excluded from the base.',
+      })
+      ests.push({
+        label: 'Wash clothes cold',
+        perYr: 0.08 * annualHotWater,
+        note: '8% of annualised hot-water gas, the share a typical laundry load draws.',
+      })
     }
     const idleThr = a.activeGas?.idleThr ?? 0.15
     const idle = a.daily.filter((d) => d.usage < idleThr)
     if (idle.length >= 5 && a.totalUsage > 0) {
       const idleDraw = idle.reduce((x, d) => x + d.usage, 0) / idle.length
       const rate = a.totalCost / a.totalUsage
-      ests.push({ label: 'Fix the pilot-light draw', perYr: idleDraw * 365 * rate })
+      ests.push({
+        label: 'Fix the pilot-light draw',
+        perYr: idleDraw * 365 * rate,
+        note: `Your ${idle.length} idle days average ${idleDraw.toFixed(2)} therms with nothing running.`,
+      })
     }
   }
   return ests.filter((e) => e.perYr >= 5).sort((x, y) => y.perYr - x.perYr).slice(0, 3)
@@ -119,6 +140,7 @@ export function buildSavings(
       label: e.label,
       amt: `${fmtMoney0(e.perYr)}/yr`,
       w: Math.max(8, Math.round((e.perYr / max) * 100)) + '%',
+      note: e.note,
     })),
     total: fmtMoney0(ests.reduce((x, e) => x + e.perYr, 0)),
   }
