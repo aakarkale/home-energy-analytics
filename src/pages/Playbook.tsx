@@ -35,8 +35,12 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
-            {plan.schedule.map((s) => (
-              <div key={s.period} style={{ borderRadius: 14, padding: 14, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {plan.schedule.map((s, si) => (
+              <div
+                key={s.period}
+                className="h-fade-up h-lift"
+                style={{ borderRadius: 14, padding: 14, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', flexDirection: 'column', gap: 6, animationDelay: `${si * 70}ms` }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: s.labelColor }}>
                     {s.period}
@@ -66,7 +70,11 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         {plan.forecast ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(88px,1fr))', gap: 8 }}>
             {plan.forecast.map((f, i) => (
-              <div key={i} style={{ borderRadius: 12, padding: '12px 8px', textAlign: 'center', background: f.bg, border: `1px solid ${f.border}`, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+              <div
+                key={i}
+                className="h-fade-up h-lift"
+                style={{ borderRadius: 12, padding: '12px 8px', textAlign: 'center', background: f.bg, border: `1px solid ${f.border}`, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', animationDelay: `${i * 50}ms` }}
+              >
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', color: 'var(--fg-4)' }}>{f.day}</div>
                 <i className={f.icon} style={{ fontSize: 20, color: f.iconColor }} />
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>
@@ -121,7 +129,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>This week's bands</div>
           {plan.bands.map((bd) => (
-            <div key={bd.name} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, padding: '8px 10px', borderRadius: 10, background: 'var(--bg-3)', border: '1px solid var(--bg-6)' }}>
+            <div key={bd.name} className="h-lift" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, padding: '8px 10px', borderRadius: 10, background: 'var(--bg-3)', border: '1px solid var(--bg-6)' }}>
               <span style={{ width: 8, height: 8, borderRadius: 100, background: bd.dot, flex: 'none' }} />
               <span style={{ color: 'var(--fg-1)', fontWeight: 600, minWidth: 76 }}>{bd.name}</span>
               <span style={{ color: 'var(--fg-4)', flex: 1 }}>{bd.range}</span>

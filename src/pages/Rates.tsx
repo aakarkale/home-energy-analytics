@@ -4,6 +4,7 @@ import type { RatesAnalysis } from '../lib/rates'
 import { seriesPath } from '../lib/svg'
 import { fmtMoney0, fmtMonthDay, hourLabel } from '../lib/format'
 import { EmptyState } from '../components/EmptyState'
+import { HoverChart } from '../components/chart'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -224,9 +225,9 @@ export function Rates({ hearth }: { hearth: Hearth }) {
             />
           )}
           {r.hasTiers && derived.abovePath && (
-            <path d={derived.abovePath} fill="none" stroke={lav} strokeWidth="2" />
+            <path className="h-draw" pathLength={1} d={derived.abovePath} fill="none" stroke={lav} strokeWidth="2" />
           )}
-          <path d={derived.belowPath} fill="none" stroke={r.hasTiers ? lavDim : lav} strokeWidth="2" />
+          <path className="h-draw" pathLength={1} d={derived.belowPath} fill="none" stroke={r.hasTiers ? lavDim : lav} strokeWidth="2" />
           {hovered !== null && (
             <line x1={PAD + (hovered + 0.5) * COL_W} y1={0} x2={PAD + (hovered + 0.5) * COL_W} y2={RATE_H} stroke="var(--fg-5)" strokeWidth="1" strokeDasharray="3 3" />
           )}
@@ -253,10 +254,31 @@ export function Rates({ hearth }: { hearth: Hearth }) {
         </svg>
 
         {/* Usage / spend columns. */}
+        <HoverChart
+          key={`rates-${metric}`}
+          count={24}
+          xAt={(h) => (PAD + (h + 0.5) * COL_W) / W}
+          onHover={setHovered}
+          label="Hourly usage and spend. Use arrow keys to step through hours."
+          tip={(h) => {
+            const row = r.hours[h]
+            return {
+              title: `${hourLabel(h)} · ${row.peak ? 'peak' : 'off-peak'}`,
+              rows: [
+                { value: `${row.avgKwh.toFixed(2)} kWh`, label: 'average', color: row.peak ? 'var(--acc,#ffdd55)' : 'var(--bg-5)' },
+                { value: fmtMoney0(row.totalCost), label: `over ${r.daysSpanned} days`, color: lav },
+                {
+                  value: r.hasTiers ? `${fmtRate(row.below, 3)} / ${fmtRate(row.above, 3)}` : fmtRate(row.below ?? row.effective, 3),
+                  label: r.hasTiers ? 'below / above' : 'rate',
+                },
+              ],
+            }
+          }}
+        >
+          {() => (
         <svg
           viewBox={`0 0 ${W} ${BAR_H}`}
           style={{ width: '100%', height: 'auto', display: 'block' }}
-          onMouseLeave={() => setHovered(null)}
         >
           {tou && (
             <rect
@@ -277,6 +299,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
             return (
               <rect
                 key={row.h}
+                className={`h-grow h-bar${hovered === row.h ? ' h-bar-on' : ''}`}
                 x={x}
                 y={y}
                 width={COL_W - 2}
@@ -284,6 +307,7 @@ export function Rates({ hearth }: { hearth: Hearth }) {
                 rx="3"
                 fill={row.peak ? 'var(--acc,#ffdd55)' : 'var(--bg-5)'}
                 opacity={dim ? 0.45 : 1}
+                style={{ transformOrigin: `0 ${BAR_H - 20}px`, animationDelay: `${row.h * 18}ms` }}
               />
             )
           })}
@@ -319,19 +343,20 @@ export function Rates({ hearth }: { hearth: Hearth }) {
               {hourLabel(hh)}
             </text>
           ))}
-          {r.hours.map((row) => (
-            <rect
-              key={`hit-${row.h}`}
-              x={PAD + row.h * COL_W}
-              y={0}
-              width={COL_W}
-              height={BAR_H}
-              fill="transparent"
-              onMouseEnter={() => setHovered(row.h)}
-              onClick={() => setHovered(row.h)}
+          {hovered !== null && (
+            <line
+              x1={PAD + (hovered + 0.5) * COL_W}
+              y1={0}
+              x2={PAD + (hovered + 0.5) * COL_W}
+              y2={BAR_H - 20}
+              stroke="var(--fg-5)"
+              strokeWidth="1"
+              strokeDasharray="3 3"
             />
-          ))}
+          )}
         </svg>
+          )}
+        </HoverChart>
 
         {/* Hover readout — the tooltip row for the focused hour. */}
         <div

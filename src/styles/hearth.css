@@ -93,3 +93,56 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 .press99:active { transform: scale(0.99); }
 
 .other-input:focus { border-color: var(--fg-5) !important; border-style: solid !important; }
+
+/* ---------------------------------------------------------------------
+   Chart motion — Kole timing: fast, ease-out, never longer than a glance.
+   Entrances run once on mount (charts remount via key when the series
+   changes); interaction states stay at the 150ms interaction speed.
+   --------------------------------------------------------------------- */
+@keyframes h-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes h-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes h-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes h-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes h-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes h-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+
+/* Line draw-in. Paths carry pathLength="1", so the dash math is exact
+   regardless of how long the real path is. */
+.h-draw {
+  stroke-dasharray: 1;
+  animation: h-draw 760ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.h-area { animation: h-fade 620ms 120ms ease-out both; }
+.h-wipe { animation: h-wipe 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.h-pop { animation: h-pop 300ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.h-fade-up { animation: h-fade-up 320ms ease-out both; }
+.h-tip { animation: h-fade-up 130ms ease-out both; }
+
+/* Bars grow from the baseline; the transform-origin is what sells it. */
+.h-grow { transform-origin: bottom; animation: h-grow 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.h-bar { transition: filter 150ms ease, opacity 150ms ease; }
+.h-bar-on { filter: brightness(1.18); }
+
+/* Heat cells lift out of the grid on hover instead of relying on a title. */
+.h-cell { transition: transform 120ms ease, filter 120ms ease; }
+.h-cell:hover, .h-cell.h-cell-on { transform: scale(1.22); filter: brightness(1.3); position: relative; z-index: 2; }
+
+/* Stat tiles that carry no plot: they respond to the pointer, but there is
+   nothing hidden to reveal, so they lift rather than open a tooltip. */
+.h-lift { transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease; }
+.h-lift:hover { transform: translateY(-2px); border-color: var(--fg-5) !important; }
+
+.h-seg { transition: opacity 150ms ease, filter 150ms ease; }
+.h-seg:hover { filter: brightness(1.12); }
+
+/* Progress/meter fills sweep to their value. */
+.h-meter { transition: width 620ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .h-draw, .h-area, .h-wipe, .h-pop, .h-fade-up, .h-grow, .h-tip {
+    animation: none !important;
+  }
+  .h-draw { stroke-dasharray: none !important; }
+  .h-meter { transition: none !important; }
+  .h-cell:hover, .h-cell.h-cell-on { transform: none; }
+}

@@ -1,10 +1,11 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import type { Fuel, Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { seriesPath } from '../lib/svg'
 import { fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum } from '../lib/format'
 import { FUEL_ICON } from '../model'
 import { EmptyState } from '../components/EmptyState'
+import { HoverChart } from '../components/chart'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -22,10 +23,19 @@ interface Kpi {
   sparkArea?: string
   sparkColor?: string
   sparkFill?: string
+  sparkPts?: [number, number][]
+  sparkIsCost?: boolean
 }
 
 export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
   const { elec, acc, accSoft, bundle, plan } = hearth
+  const [save, setSave] = useState<number | null>(null)
+  // Meters animate from zero on the first paint after mount.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(t)
+  }, [])
   if (!bundle) return <EmptyState hearth={hearth} />
   const a = bundle.analysis
 
@@ -45,6 +55,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
       sparkArea: sp.area,
       sparkColor: acc,
       sparkFill: accSoft,
+      sparkPts: sp.pts,
     },
     {
       label: 'Total cost',
@@ -56,6 +67,8 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
       sparkArea: spC.area,
       sparkColor: 'rgb(174,134,232)',
       sparkFill: 'rgba(174,134,232,0.14)',
+      sparkPts: spC.pts,
+      sparkIsCost: true,
     },
     a.projection
       ? {
@@ -114,8 +127,12 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-        {kpis.map((k) => (
-          <div key={k.label} style={{ ...card, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+        {kpis.map((k, ki) => (
+          <div
+            key={k.label}
+            className="h-fade-up"
+            style={{ ...card, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, animationDelay: `${ki * 60}ms` }}
+          >
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
               {k.label}
             </div>
@@ -124,11 +141,45 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-3)', marginLeft: 5 }}>{k.unit}</span>
             </div>
             <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{k.sub}</div>
-            {k.spark && (
-              <svg viewBox="0 0 120 32" style={{ width: '100%', height: 32, display: 'block' }} preserveAspectRatio="none">
-                <path d={k.sparkArea} fill={k.sparkFill} />
-                <path d={k.sparkLine} fill="none" stroke={k.sparkColor} strokeWidth="1.5" />
-              </svg>
+            {k.spark && k.sparkPts && (
+              <HoverChart
+                key={`sp-${hearth.fuel}-${k.label}`}
+                count={k.sparkPts.length}
+                xAt={(i) => k.sparkPts![i][0] / 120}
+                label={`${k.label}, last ${k.sparkPts.length} days`}
+                tipTop={-8}
+                tip={(i) => {
+                  const d = a.daily.slice(-14)[i]
+                  return {
+                    title: fmtMonthDay(d.d),
+                    rows: [
+                      {
+                        value: k.sparkIsCost ? fmtMoney(d.cost) : `${fmtNum(d.usage, 1)} ${a.unit}`,
+                        label: k.sparkIsCost ? 'cost' : 'usage',
+                        color: k.sparkColor,
+                      },
+                    ],
+                  }
+                }}
+              >
+                {(hover) => (
+                  <svg viewBox="0 0 120 32" style={{ width: '100%', height: 32, display: 'block' }} preserveAspectRatio="none">
+                    <path className="h-area" d={k.sparkArea} fill={k.sparkFill} />
+                    <path className="h-draw" pathLength={1} d={k.sparkLine} fill="none" stroke={k.sparkColor} strokeWidth="1.5" />
+                    {hover !== null && (
+                      <circle
+                        cx={k.sparkPts![hover][0]}
+                        cy={k.sparkPts![hover][1]}
+                        r="2.5"
+                        fill={k.sparkColor}
+                        stroke="var(--bg-2)"
+                        strokeWidth="1.5"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                  </svg>
+                )}
+              </HoverChart>
             )}
           </div>
         ))}
@@ -149,14 +200,38 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
                 <span style={{ fontSize: 14, color: 'var(--fg-3)', fontWeight: 500 }}> /yr</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {bundle.savings.items.map((s) => (
-                  <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {bundle.savings.items.map((s, si) => (
+                  <div
+                    key={s.label}
+                    tabIndex={0}
+                    aria-label={`${s.label}: ${s.amt} per year`}
+                    onPointerEnter={() => setSave(si)}
+                    onPointerLeave={() => setSave(null)}
+                    onFocus={() => setSave(si)}
+                    onBlur={() => setSave(null)}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 5, outline: 'none', cursor: 'default' }}
+                  >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
-                      <span style={{ color: 'var(--fg-1)', fontWeight: 500 }}>{s.label}</span>
+                      <span style={{ color: save === si ? 'var(--fg-0)' : 'var(--fg-1)', fontWeight: 500, transition: 'color 150ms ease' }}>
+                        {s.label}
+                      </span>
                       <span style={{ color: 'var(--accent-green)', fontWeight: 600 }}>{s.amt}</span>
                     </div>
                     <div style={{ height: 5, borderRadius: 100, background: 'var(--bg-4)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 100, background: 'var(--accent-green)', opacity: 0.85, width: s.w }} />
+                      <div
+                        className="h-meter"
+                        style={{
+                          height: '100%',
+                          borderRadius: 100,
+                          background: 'var(--accent-green)',
+                          opacity: save === null || save === si ? 0.95 : 0.55,
+                          width: mounted ? s.w : '0%',
+                          transitionDelay: `${si * 90}ms`,
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--fg-4)', lineHeight: 1.45, maxHeight: save === si ? 40 : 0, opacity: save === si ? 1 : 0, overflow: 'hidden', transition: 'max-height 200ms ease, opacity 150ms ease' }}>
+                      {s.note}
                     </div>
                   </div>
                 ))}
@@ -202,10 +277,35 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             Open Energy <i className="ph ph-caret-right" style={{ fontSize: 11 }} />
           </button>
         </div>
-        <svg viewBox="0 0 720 150" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
-          <path d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
-          <path d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
-        </svg>
+        <HoverChart
+          key={`ov-${hearth.fuel}-${hearth.metric}`}
+          count={a.daily.length}
+          xAt={(i) => mini.pts[i][0] / 720}
+          label={`Daily ${metricLabel}. Use arrow keys to step through days.`}
+          tip={(i) => {
+            const d = a.daily[i]
+            return {
+              title: fmtMonthDay(d.d),
+              rows: [
+                { value: `${fmtNum(d.usage, 1)} ${a.unit}`, label: 'usage', color: acc },
+                { value: fmtMoney(d.cost), label: 'cost', color: 'rgb(174,134,232)' },
+              ],
+            }
+          }}
+        >
+          {(hover) => (
+            <svg viewBox="0 0 720 150" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
+              <path className="h-area" d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
+              <path className="h-draw" pathLength={1} d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
+              {hover !== null && (
+                <>
+                  <line x1={mini.pts[hover][0]} y1={4} x2={mini.pts[hover][0]} y2={146} stroke="var(--fg-5)" strokeWidth="1" strokeDasharray="3 3" />
+                  <circle cx={mini.pts[hover][0]} cy={mini.pts[hover][1]} r="4" fill="var(--acc,#ffdd55)" stroke="var(--bg-2)" strokeWidth="2" />
+                </>
+              )}
+            </svg>
+          )}
+        </HoverChart>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-4)' }}>
           <span>{fmtMonthDay(a.periodStart).toUpperCase()}</span>
           <span>{fmtMonthDay(a.daily[Math.floor(a.daily.length / 2)].d).toUpperCase()}</span>
@@ -262,7 +362,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2 }}>
             <div style={{ flex: 1, height: 5, borderRadius: 100, background: 'var(--bg-4)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'var(--acc,#ffdd55)', width: qProgW, borderRadius: 100 }} />
+              <div className="h-meter" style={{ height: '100%', background: 'var(--acc,#ffdd55)', width: mounted ? qProgW : '0%', borderRadius: 100 }} />
             </div>
             <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{qProg} questions answered</div>
           </div>
