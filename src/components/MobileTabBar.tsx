@@ -1,5 +1,6 @@
 import type { Hearth } from '../types'
 import { NAV_PAGES } from '../model'
+import { PAGE_PATHS } from '../lib/routes'
 
 export function MobileTabBar({ hearth }: { hearth: Hearth }) {
   return (
@@ -23,9 +24,15 @@ export function MobileTabBar({ hearth }: { hearth: Hearth }) {
       {NAV_PAGES.map((nav) => {
         const active = hearth.page === nav.id
         return (
-          <button
+          <a
             key={nav.id}
-            onClick={() => hearth.go(nav.id)}
+            href={PAGE_PATHS[nav.id]}
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              hearth.go(nav.id)
+            }}
+            aria-current={active ? 'page' : undefined}
             className="h-interactive press96"
             style={{
               display: 'flex',
@@ -38,13 +45,14 @@ export function MobileTabBar({ hearth }: { hearth: Hearth }) {
               fontFamily: 'var(--font-dm-sans)',
               fontSize: 10,
               fontWeight: 600,
+              textDecoration: 'none',
               color: active ? 'var(--fg-0)' : 'var(--fg-3)',
               padding: '4px 10px',
             }}
           >
             <i className={nav.icon} style={{ fontSize: 21 }} />
             {nav.short}
-          </button>
+          </a>
         )
       })}
     </div>
