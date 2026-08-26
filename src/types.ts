@@ -36,6 +36,9 @@ export interface FuelBundle {
   rates: RatesAnalysis | null
   insights: Insight[]
   savings: { items: SavingItem[]; total: string }
+  /** Dollars per year the diagnostic answers moved the estimate, versus the
+   *  same data with nothing answered. Drives the "your answers did this" line. */
+  answerLift: number
   questions: QDef[]
   fileName: string
   rangeNote: string

@@ -4,6 +4,7 @@
 import { createClient, type Session } from '@supabase/supabase-js'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './config'
 import { parseGreenButtonCsv, type ParsedUpload } from './parse'
+import { ROUTES } from './routes'
 import type { Fuel, Profile } from '../types'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
@@ -64,10 +65,18 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut()
 }
 
-/** Sends the reset link. The origin must be in the Redirect URLs allow-list. */
+/** Sends the reset link.
+ *
+ *  The full path matters, not just the origin. Supabase treats `.` and `/` as
+ *  glob separators, so a bare origin does not match an allow-list entry ending
+ *  in `/**`; it would only be accepted where it happens to equal the Site URL
+ *  exactly, and a reset started from a preview deploy or localhost would bounce
+ *  the user to production instead. Sending the real path matches every entry,
+ *  and lands on the new-password prompt without a detour through the landing
+ *  page. */
 export async function requestPasswordReset(email: string): Promise<{ error?: string }> {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
+    redirectTo: window.location.origin + ROUTES.resetPassword,
   })
   return error ? { error: error.message } : {}
 }
