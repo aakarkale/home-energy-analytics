@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Hearth, ObTab, Profile } from '../types'
 import type { HearthStore } from '../store'
-import { parseGreenButtonCsv, ParseError, type ParsedUpload } from '../lib/parse'
+import { parseGreenButtonCsv, ParseError, type DateOrder, type ParsedUpload } from '../lib/parse'
 import { analyzeFuel } from '../lib/analyze'
-import { fmtFullDate, fmtMoney0 } from '../lib/format'
+import { fmtDateNum, fmtMoney0 } from '../lib/format'
 import { FUEL_ICON } from '../model'
 
 const OB_TITLES = ['Welcome to Hearth', 'Your home', 'Your data', 'Billing cycle']
@@ -176,6 +176,22 @@ export function Onboarding({
     setParseErrors(errs)
   }
 
+  /** Re-read one ambiguous file in the order the user picked. */
+  function resolveDateOrder(target: ParsedUpload, order: DateOrder) {
+    setParsed((prev) =>
+      prev.map((p) => {
+        if (p.fuel !== target.fuel) return p
+        try {
+          return parseGreenButtonCsv(p.csv, p.fileName, order)
+        } catch {
+          return p
+        }
+      }),
+    )
+    // The billing window was derived from the old reading; rebuild it.
+    setBilling(null)
+  }
+
   async function submitAuth() {
     setAuthBusy(true)
     setAuthError(null)
@@ -192,12 +208,19 @@ export function Onboarding({
       } else if (res.needsConfirm) {
         setTab('signin')
         setNotice('Check your inbox: confirm your email, then sign in here.')
-      } else hearth.obNext()
+      } else {
+        store.setMode('live')
+        hearth.obNext()
+      }
     } else {
       const res = await store.signIn(email.trim(), password)
       setAuthBusy(false)
       if (res.error) setAuthError(res.error)
-      else hearth.obNext()
+      else {
+        // Signing in shows your own data, never a leftover demo session.
+        store.setMode('live')
+        hearth.obNext()
+      }
     }
   }
 
@@ -640,7 +663,7 @@ export function Onboarding({
                     {p.fileName}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>
-                    {p.fuel} · {p.granularity} · {p.rowCount} rows · {fmtFullDate(p.periodStart)} – {fmtFullDate(p.periodEnd)}
+                    {p.fuel} · {p.granularity} · {p.rowCount} rows · {fmtDateNum(p.periodStart)} – {fmtDateNum(p.periodEnd)}
                   </div>
                 </div>
                 <button
@@ -650,6 +673,46 @@ export function Onboarding({
                 >
                   <i className="ph ph-x" />
                 </button>
+              </div>
+            ))}
+            {parsed.filter((p) => p.dateAmbiguous).map((p) => (
+              <div
+                key={`amb-${p.fuel}`}
+                style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '11px 13px', borderRadius: 12, background: 'rgba(255,221,85,0.09)', border: '1px solid rgba(255,221,85,0.3)' }}
+              >
+                <div style={{ fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.5 }}>
+                  Every date in <b style={{ color: 'var(--fg-1)' }}>{p.fileName}</b> reads validly both
+                  ways, so we can't tell the order from the file. Which is it?
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {(['mdy', 'dmy'] as const).map((ord) => (
+                    <button
+                      key={ord}
+                      onClick={() => resolveDateOrder(p, ord)}
+                      className="h-interactive chip press97"
+                      style={{
+                        padding: '7px 13px',
+                        borderRadius: 100,
+                        border: `1px solid ${p.dateOrder === ord ? 'var(--acc,#ffdd55)' : 'var(--bg-6)'}`,
+                        background: 'var(--bg-4)',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-dm-sans)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--fg-1)',
+                      }}
+                    >
+                      {ord === 'mdy' ? 'mm/dd/yyyy' : 'dd/mm/yyyy'}
+                      <span style={{ color: 'var(--fg-4)', fontWeight: 500, marginLeft: 6 }}>
+                        {ord === 'mdy' ? 'US' : 'day first'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--fg-4)' }}>
+                  Reading it as {p.dateOrder === 'mdy' ? 'mm/dd/yyyy' : 'dd/mm/yyyy'} gives{' '}
+                  {fmtDateNum(p.periodStart)} – {fmtDateNum(p.periodEnd)}.
+                </div>
               </div>
             ))}
             {parseErrors.map((err) => (
@@ -709,6 +772,9 @@ export function Onboarding({
                       onChange={(e) => setBilling((b) => (b ? { ...b, start: e.target.value } : b))}
                       style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                     />
+                    <div style={{ fontSize: 11, color: 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtDateNum(billing.start)} <span style={{ color: 'var(--fg-5)' }}>mm/dd/yyyy</span>
+                    </div>
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
@@ -720,6 +786,9 @@ export function Onboarding({
                       onChange={(e) => setBilling((b) => (b ? { ...b, end: e.target.value } : b))}
                       style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
                     />
+                    <div style={{ fontSize: 11, color: 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtDateNum(billing.end)} <span style={{ color: 'var(--fg-5)' }}>mm/dd/yyyy</span>
+                    </div>
                   </div>
                 </div>
                 {summary && (

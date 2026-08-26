@@ -490,7 +490,8 @@ function dateFromKeyMs(d: string): number {
 
 function dateFromLabel(d: string): string {
   const [y, m, day] = d.split('-').map(Number)
-  return new Date(y, m - 1, day)
-    .toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
-    .replace(',', '')
+  // Weekday plus the numeric date in the platform's mm/dd order.
+  const wd = new Date(y, m - 1, day).toLocaleDateString('en-US', { weekday: 'short' })
+  const p2 = (x: number) => String(x).padStart(2, '0')
+  return `${wd} ${p2(m)}/${p2(day)}`
 }

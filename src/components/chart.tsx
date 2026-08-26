@@ -261,3 +261,45 @@ export function SplitBar({ segments, height = 14 }: { segments: SplitSeg[]; heig
     </div>
   )
 }
+
+/**
+ * Fahrenheit / Celsius switch. Placed on every card that shows a temperature so
+ * the unit is changeable wherever it is read, not hidden in a settings screen.
+ */
+export function TempToggle({
+  unit,
+  onChange,
+}: {
+  unit: 'F' | 'C'
+  onChange: (u: 'F' | 'C') => void
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Temperature unit"
+      style={{ display: 'flex', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 2, gap: 2, flex: 'none' }}
+    >
+      {(['F', 'C'] as const).map((u) => (
+        <button
+          key={u}
+          onClick={() => onChange(u)}
+          aria-pressed={unit === u}
+          className="h-interactive press97"
+          style={{
+            padding: '3px 10px',
+            borderRadius: 100,
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-dm-sans)',
+            fontSize: 11,
+            fontWeight: 700,
+            background: unit === u ? 'var(--bg-5)' : 'transparent',
+            color: unit === u ? 'var(--fg-0)' : 'var(--fg-4)',
+          }}
+        >
+          °{u}
+        </button>
+      ))}
+    </div>
+  )
+}

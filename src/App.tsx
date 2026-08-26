@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, Theme } from './types'
+import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, TempUnit, Theme } from './types'
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
@@ -20,7 +20,10 @@ import { Playbook } from './pages/Playbook'
 import { Activity } from './pages/Activity'
 
 const THEME_KEY = 'hearth-theme'
-const SETUP_KEY = 'hearth-setup-done'
+// Per-tab, deliberately not localStorage: opening the demo should not replace
+// the marketing page for this browser forever.
+const DEMO_VISIT_KEY = 'hearth-demo-visit'
+const TEMP_UNIT_KEY = 'hearth-temp-unit'
 
 function partOfDay(): string {
   const h = new Date().getHours()
@@ -40,17 +43,22 @@ export default function App() {
       return 'dark'
     }
   })
+  const [tempUnit, setTempUnitState] = useState<TempUnit>(() => {
+    try {
+      return localStorage.getItem(TEMP_UNIT_KEY) === 'C' ? 'C' : 'F'
+    } catch {
+      return 'F'
+    }
+  })
   const [page, setPage] = useState<Page>('overview')
   const [fuel, setFuel] = useState<Fuel>('electric')
   const [metric, setMetric] = useState<Metric>('usage')
   const [filter, setFilter] = useState<EventFilter>('All')
-  // The marketing landing fronts the app for brand-new visitors; anyone who
-  // has entered before (or holds a session) goes straight in.
-  const [view, setView] = useState<'landing' | 'app'>(() => {
+  const [demoVisit, setDemoVisit] = useState(() => {
     try {
-      return localStorage.getItem(SETUP_KEY) === '1' ? 'app' : 'landing'
+      return sessionStorage.getItem(DEMO_VISIT_KEY) === '1'
     } catch {
-      return 'app'
+      return false
     }
   })
   const [ob, setOb] = useState(false)
@@ -97,16 +105,27 @@ export default function App() {
     return out
   }, [store.uploads, store.profile])
 
-  // A live session skips the marketing page (new device, confirmed email, …).
+  // Who sees the app rather than the marketing page. Derived every render, never
+  // remembered: a signed-in user, a guest holding their own upload, or someone
+  // who opened the demo in this tab. Merely having visited before is not a
+  // reason — that was the bug where the demo replaced the landing page for good.
+  const inApp = !!store.session || store.hasMyData || demoVisit
+
+  // Signing out clears the per-tab demo flag in the store; mirror that here so
+  // the marketing page comes back instead of the sample dashboard.
   useEffect(() => {
-    if (store.session) setView('app')
+    if (store.session) return
+    try {
+      if (sessionStorage.getItem(DEMO_VISIT_KEY) !== '1') setDemoVisit(false)
+    } catch {
+      /* private mode */
+    }
   }, [store.session])
 
   // Landing on a password-reset link opens setup straight at the new-password
   // prompt, whatever else the browser remembered.
   useEffect(() => {
     if (!store.recovering) return
-    setView('app')
     setObStep(0)
     setOb(true)
   }, [store.recovering])
@@ -176,6 +195,15 @@ export default function App() {
     isMobile,
     elec,
     light,
+    tempUnit,
+    setTempUnit: (u: TempUnit) => {
+      try {
+        localStorage.setItem(TEMP_UNIT_KEY, u)
+      } catch {
+        /* private mode */
+      }
+      setTempUnitState(u)
+    },
     acc,
     accSoft,
 
@@ -219,14 +247,7 @@ export default function App() {
       if (tab) setObTab(tab)
       setOb(true)
     },
-    closeOb: () => {
-      try {
-        localStorage.setItem(SETUP_KEY, '1')
-      } catch {
-        /* private mode */
-      }
-      setOb(false)
-    },
+    closeOb: () => setOb(false),
     obNext: () => setObStep((s) => Math.min(3, s + 1)),
     obBack: () => setObStep((s) => Math.max(0, s - 1)),
 
@@ -262,23 +283,37 @@ export default function App() {
   }
 
   const enterApp = (kind: 'create' | 'signin' | 'demo') => {
-    try {
-      localStorage.setItem(SETUP_KEY, '1')
-    } catch {
-      /* private mode */
-    }
-    setView('app')
     if (kind === 'demo') {
+      try {
+        sessionStorage.setItem(DEMO_VISIT_KEY, '1')
+      } catch {
+        /* private mode */
+      }
+      setDemoVisit(true)
       store.setMode('demo')
       setOb(false)
-    } else {
-      setObTab(kind)
-      setObStep(0)
-      setOb(true)
+      return
     }
+    // Sign up / sign in open over the landing page. The app appears only once
+    // there is a real session, so a user awaiting email confirmation is never
+    // dropped into the demo dashboard.
+    setObTab(kind)
+    setObStep(0)
+    setOb(true)
   }
 
-  if (view === 'landing') {
+  // Restoring a session is async; painting the landing page first would flash
+  // the marketing site at users who are already signed in.
+  if (!store.authReady) {
+    return (
+      <div
+        className={light ? 'hearth-light' : undefined}
+        style={{ height: '100%', width: '100%', background: 'var(--bg-0)' }}
+      />
+    )
+  }
+
+  if (!inApp) {
     return (
       <div
         className={light ? 'hearth-light' : undefined}
@@ -298,6 +333,7 @@ export default function App() {
         }
       >
         <Landing enter={enterApp} />
+        {ob && <Onboarding hearth={hearth} store={store} initialTab={obTab} />}
       </div>
     )
   }

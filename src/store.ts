@@ -343,6 +343,13 @@ export function useHearthStore(): HearthStore {
 
   const signOutUser = useCallback(async () => {
     await api.signOut()
+    // Drop the per-tab demo flag so signing out returns to the landing page
+    // rather than the sample dashboard.
+    try {
+      sessionStorage.removeItem('hearth-demo-visit')
+    } catch {
+      /* private mode */
+    }
     setProfile({
       display_name: null,
       zip: null,

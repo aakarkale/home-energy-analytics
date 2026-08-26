@@ -10,6 +10,7 @@ export type Theme = 'dark' | 'light'
 export type Mode = 'demo' | 'live'
 export type EventFilter = 'All' | 'Spikes' | 'Quiet days' | 'High'
 export type ObTab = 'create' | 'signin'
+export type TempUnit = 'F' | 'C'
 
 /** Home facts — each one changes what the engine asks or suggests. */
 export interface Profile {
@@ -56,6 +57,8 @@ export interface Hearth {
   isMobile: boolean
   elec: boolean
   light: boolean
+  tempUnit: TempUnit
+  setTempUnit: (u: TempUnit) => void
   acc: string
   accSoft: string
 

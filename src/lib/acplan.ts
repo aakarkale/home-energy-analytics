@@ -27,7 +27,8 @@ export interface PlanForecastDay {
 export interface ScheduleBlock {
   period: string
   time: string
-  temp: string
+  /** Setpoint in °F; the reader's unit is applied at render. null = AC off. */
+  tempF: number | null
   why: string
   bg: string
   border: string
@@ -43,10 +44,23 @@ export interface AcPlan {
   summerChip: string | null
   todayLine: string
   forecast: PlanForecastDay[] | null
-  bands: { name: Band; range: string; count: string; dot: string }[]
+  /** Band edges in °F, plus the setpoints that band uses. */
+  bands: {
+    name: Band
+    loF: number | null
+    hiF: number | null
+    preF: number | null
+    peakF: number | null
+    note: string
+    count: string
+    dot: string
+  }[]
+  /** delta is a temperature *difference* in °F, not an absolute reading. */
   nightFlush: { delta: number; openAt: string; closeBy: string } | null
-  preCool: { time: string; temp: string }
-  peak: { label: string; temp: string }
+  preCool: { time: string; tempF: number | null }
+  peak: { label: string; tempF: number | null }
+  todayBand: Band | null
+  todayHiF: number | null
 }
 
 export const BAND_COLOR: Record<Band, string> = {
@@ -63,11 +77,11 @@ export function bandOf(hi: number): Band {
   return 'Extreme'
 }
 
-const BAND_TEMPS: Record<Band, { pre: string; peak: string }> = {
-  Off: { pre: '—', peak: '—' },
-  Standard: { pre: '72°', peak: '78°' },
-  Hot: { pre: '70°', peak: '77°' },
-  Extreme: { pre: '70°', peak: '76°' },
+const BAND_TEMPS: Record<Band, { pre: number | null; peak: number | null }> = {
+  Off: { pre: null, peak: null },
+  Standard: { pre: 72, peak: 78 },
+  Hot: { pre: 70, peak: 77 },
+  Extreme: { pre: 70, peak: 76 },
 }
 
 export function buildAcPlan(
@@ -109,7 +123,7 @@ export function buildAcPlan(
     {
       period: 'Wake',
       time: hourLabel(6),
-      temp: '76°',
+      tempF: 76,
       why: "Coast on last night's cool air.",
       bg: 'var(--bg-3)',
       border: 'var(--bg-6)',
@@ -119,7 +133,7 @@ export function buildAcPlan(
     {
       period: 'Pre-cool',
       time: hourLabel(preHour),
-      temp: temps.pre,
+      tempF: temps.pre,
       why: 'Chill the house while power is cheap.',
       bg: 'rgba(41,149,255,0.09)',
       border: 'rgba(41,149,255,0.3)',
@@ -129,7 +143,7 @@ export function buildAcPlan(
     {
       period: 'Peak',
       time: winLabel,
-      temp: temps.peak,
+      tempF: temps.peak,
       why: 'Keep the lid shut. The AC mostly rests.',
       bg: 'rgba(255,221,85,0.08)',
       border: 'rgba(255,221,85,0.3)',
@@ -139,7 +153,7 @@ export function buildAcPlan(
     {
       period: 'Evening',
       time: peakEndLabel,
-      temp: '74°',
+      tempF: 74,
       why: 'Cheap power returns.',
       bg: 'var(--bg-3)',
       border: 'var(--bg-6)',
@@ -150,10 +164,10 @@ export function buildAcPlan(
 
   const count = (b: Band) => `${days ? days.filter((d) => d.band === b).length : 0} day${days && days.filter((d) => d.band === b).length === 1 ? '' : 's'}`
   const bands: AcPlan['bands'] = [
-    { name: 'Off', range: 'below 78°: windows do the work', count: count('Off'), dot: BAND_COLOR.Off },
-    { name: 'Standard', range: '78–88°: pre-cool 72°, peak 78°', count: count('Standard'), dot: BAND_COLOR.Standard },
-    { name: 'Hot', range: '88–95°: pre-cool 70°, peak 77°', count: count('Hot'), dot: BAND_COLOR.Hot },
-    { name: 'Extreme', range: 'above 95°: comfort first', count: count('Extreme'), dot: BAND_COLOR.Extreme },
+    { name: 'Off', loF: null, hiF: 78, preF: null, peakF: null, note: 'windows do the work', count: count('Off'), dot: BAND_COLOR.Off },
+    { name: 'Standard', loF: 78, hiF: 88, preF: 72, peakF: 78, note: '', count: count('Standard'), dot: BAND_COLOR.Standard },
+    { name: 'Hot', loF: 88, hiF: 95, preF: 70, peakF: 77, note: '', count: count('Hot'), dot: BAND_COLOR.Hot },
+    { name: 'Extreme', loF: 95, hiF: null, preF: null, peakF: null, note: 'comfort first', count: count('Extreme'), dot: BAND_COLOR.Extreme },
   ]
 
   let nightFlush: AcPlan['nightFlush'] = null
@@ -171,11 +185,14 @@ export function buildAcPlan(
     schedule,
     summerChip:
       precoolSummerEst && precoolSummerEst >= 10 ? `~$${Math.round(precoolSummerEst)} this summer` : null,
-    todayLine: today ? `${todayBand} day · high ${today.hi}°` : `Detected peak ${winLabel}`,
+    // Composed at render so the high can carry the reader's unit.
+    todayLine: today ? `${todayBand} day` : `Detected peak ${winLabel}`,
+    todayBand: today ? todayBand : null,
+    todayHiF: today ? today.hi : null,
     forecast: days,
     bands,
     nightFlush,
-    preCool: { time: `PRE-COOL · ${hourLabel(preHour).replace(' ', ' ')}`, temp: temps.pre },
-    peak: { label: `PEAK · ${winLabel}`, temp: temps.peak },
+    preCool: { time: `PRE-COOL · ${hourLabel(preHour)}`, tempF: temps.pre },
+    peak: { label: `PEAK · ${winLabel}`, tempF: temps.peak },
   }
 }
