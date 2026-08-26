@@ -29,6 +29,10 @@ export interface ParsedUpload {
   totalUsage: number
   totalCost: number
   serviceRef?: string
+  /** Which order the file's slashed dates were read in. */
+  dateOrder: DateOrder
+  /** True when both readings were valid, so the caller should confirm. */
+  dateAmbiguous: boolean
   /** The raw CSV text (stored server-side only when the user saves). */
   csv: string
 }
@@ -59,13 +63,46 @@ function splitCsvLine(line: string): string[] {
   return out.map((s) => s.trim())
 }
 
-function parseDate(raw: string): string | null {
+/** Which component of a slashed date is the month. mm/dd/yyyy is the default. */
+export type DateOrder = 'mdy' | 'dmy'
+
+const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+
+/**
+ * Works out whether slashed dates in a file are month-first or day-first.
+ *
+ * A value above 12 in either position settles it outright. When every row
+ * reads validly both ways the file is genuinely ambiguous: we fall back to
+ * mm/dd/yyyy and say so, so the caller can ask rather than guess silently.
+ */
+export function detectDateOrder(cells: string[]): { order: DateOrder; ambiguous: boolean } {
+  let firstOver12 = false
+  let secondOver12 = false
+  let slashed = 0
+  for (const raw of cells) {
+    const m = SLASH_DATE.exec(raw.trim())
+    if (!m) continue
+    slashed++
+    if (+m[1] > 12) firstOver12 = true
+    if (+m[2] > 12) secondOver12 = true
+  }
+  // A file with a first part above 12 can only be day-first, and vice versa.
+  if (firstOver12 && !secondOver12) return { order: 'dmy', ambiguous: false }
+  if (secondOver12 && !firstOver12) return { order: 'mdy', ambiguous: false }
+  // Both over 12, or a mix: contradictory. Treat as the platform default.
+  if (firstOver12 && secondOver12) return { order: 'mdy', ambiguous: false }
+  return { order: 'mdy', ambiguous: slashed > 0 }
+}
+
+function parseDate(raw: string, order: DateOrder = 'mdy'): string | null {
   const t = raw.trim()
-  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
-  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
-  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t)
-  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`
-  return null
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`
+  const m = SLASH_DATE.exec(t)
+  if (!m) return null
+  const [mo, day] = order === 'dmy' ? [m[2], m[1]] : [m[1], m[2]]
+  if (+mo < 1 || +mo > 12 || +day < 1 || +day > 31) return null
+  return `${m[3]}-${mo.padStart(2, '0')}-${day.padStart(2, '0')}`
 }
 
 function parseMoney(raw: string): number {
@@ -77,7 +114,12 @@ function parseMoney(raw: string): number {
   return neg ? -v : v
 }
 
-export function parseGreenButtonCsv(csv: string, fileName: string): ParsedUpload {
+export function parseGreenButtonCsv(
+  csv: string,
+  fileName: string,
+  /** Override the detected order when the user has resolved an ambiguous file. */
+  forceOrder?: DateOrder,
+): ParsedUpload {
   const lines = csv.split(/\r\n|\n|\r/)
 
   let serviceRef: string | undefined
@@ -114,6 +156,17 @@ export function parseGreenButtonCsv(csv: string, fileName: string): ParsedUpload
   const usageHeader = header[cUsage] || ''
   const headerUnit = /THERM/.test(usageHeader) ? 'therms' : /KWH/.test(usageHeader) ? 'kWh' : null
 
+  // Settle the date order once, from every date in the file, before parsing rows.
+  const dateCells: string[] = []
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue
+    const c = splitCsvLine(lines[i])[cDate]
+    if (c) dateCells.push(c)
+  }
+  const detected = detectDateOrder(dateCells)
+  const dateOrder = forceOrder ?? detected.order
+  const dateAmbiguous = !forceOrder && detected.ambiguous
+
   const byKey = new Map<string, Reading>()
   let unitSeen: 'kWh' | 'therms' | null = headerUnit
   let typeSeen = ''
@@ -122,7 +175,7 @@ export function parseGreenButtonCsv(csv: string, fileName: string): ParsedUpload
   for (let i = headerIdx + 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue
     const cells = splitCsvLine(lines[i])
-    const d = parseDate(cells[cDate] ?? '')
+    const d = parseDate(cells[cDate] ?? '', dateOrder)
     if (!d) continue
     const usage = parseFloat((cells[cUsage] ?? '').replace(/[",]/g, ''))
     if (!Number.isFinite(usage)) continue
@@ -180,6 +233,8 @@ export function parseGreenButtonCsv(csv: string, fileName: string): ParsedUpload
     totalUsage: readings.reduce((a, r) => a + r.usage, 0),
     totalCost: readings.reduce((a, r) => a + r.cost, 0),
     ...(serviceRef ? { serviceRef } : {}),
+    dateOrder,
+    dateAmbiguous,
     csv,
   }
 }

@@ -2,10 +2,10 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import type { Fuel, Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { seriesPath } from '../lib/svg'
-import { fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum } from '../lib/format'
+import { fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum, fmtTemp } from '../lib/format'
 import { FUEL_ICON } from '../model'
 import { EmptyState } from '../components/EmptyState'
-import { HoverChart } from '../components/chart'
+import { HoverChart, TempToggle } from '../components/chart'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -314,25 +314,31 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 12 }}>
-        <button
-          onClick={() => hearth.go('playbook')}
-          className="h-interactive card-btn press99"
-          style={{ textAlign: 'left', ...card, padding: 20, cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', display: 'flex', flexDirection: 'column', gap: 10, color: 'var(--fg-1)' }}
+        <div
+          style={{ textAlign: 'left', ...card, padding: 20, fontFamily: 'var(--font-dm-sans)', display: 'flex', flexDirection: 'column', gap: 10, color: 'var(--fg-1)' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: 'var(--fg-0)', flexWrap: 'wrap' }}>
             <i className="ph ph-snowflake" style={{ color: 'var(--accent-blue)', fontSize: 17 }} />
             Today's AC plan
-            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--fg-4)' }}>{plan.todayLine}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--fg-4)' }}>
+              {plan.todayLine}
+              {plan.todayHiF !== null && ` · high ${fmtTemp(plan.todayHiF, hearth.tempUnit)}`}
+            </span>
+            <TempToggle unit={hearth.tempUnit} onChange={hearth.setTempUnit} />
           </div>
           {plan.hasAC ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 110, borderRadius: 12, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', padding: '10px 12px' }}>
                 <div style={{ fontSize: 11, color: 'var(--fg-4)', fontWeight: 700, letterSpacing: '.05em' }}>{plan.preCool.time.toUpperCase()}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-blue)', marginTop: 4 }}>{plan.preCool.temp}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-blue)', marginTop: 4 }}>
+                  {plan.preCool.tempF === null ? '—' : fmtTemp(plan.preCool.tempF, hearth.tempUnit)}
+                </div>
               </div>
               <div style={{ flex: 1, minWidth: 110, borderRadius: 12, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', padding: '10px 12px' }}>
                 <div style={{ fontSize: 11, color: 'var(--fg-4)', fontWeight: 700, letterSpacing: '.05em' }}>{plan.peak.label.toUpperCase()}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg-0)', marginTop: 4 }}>{plan.peak.temp}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg-0)', marginTop: 4 }}>
+                  {plan.peak.tempF === null ? '—' : fmtTemp(plan.peak.tempF, hearth.tempUnit)}
+                </div>
               </div>
             </div>
           ) : (
@@ -342,9 +348,15 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           )}
           <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
             Chill the house while power is cheap, then let it coast.{' '}
-            <span style={{ color: 'var(--acc,#ffdd55)', fontWeight: 600 }}>Full playbook →</span>
+            <button
+              onClick={() => hearth.go('playbook')}
+              className="h-interactive hov-bright"
+              style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', fontSize: 12, color: 'var(--acc,#ffdd55)', fontWeight: 600 }}
+            >
+              Full playbook →
+            </button>
           </div>
-        </button>
+        </div>
 
         <button
           onClick={() => hearth.go('activity')}

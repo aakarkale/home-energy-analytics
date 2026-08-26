@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { Hearth } from '../types'
+import { fmtTemp, fmtTempDelta } from '../lib/format'
+import { TempToggle } from '../components/chart'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -8,8 +10,10 @@ const card: CSSProperties = {
 }
 
 export function Playbook({ hearth }: { hearth: Hearth }) {
-  const { plan } = hearth
+  const { plan, tempUnit } = hearth
   const hasElectric = !!hearth.bundles.electric
+  const t = (f: number | null) => (f === null ? '—' : fmtTemp(f, tempUnit))
+  const unitToggle = <TempToggle unit={tempUnit} onChange={hearth.setTempUnit} />
 
   return (
     <>
@@ -30,8 +34,11 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
                 {plan.summerChip}
               </span>
             )}
-            <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--fg-4)' }}>
-              Times derived from your detected {plan.windowLabel} peak
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, color: 'var(--fg-4)' }}>
+                Times derived from your detected {plan.windowLabel} peak
+              </span>
+              {unitToggle}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
@@ -47,7 +54,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>{s.time}</span>
                 </div>
-                <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', color: s.tempColor, lineHeight: 1 }}>{s.temp}</div>
+                <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', color: s.tempColor, lineHeight: 1 }}>{t(s.tempF)}</div>
                 <div style={{ fontSize: 12, color: 'var(--fg-3)', lineHeight: 1.4 }}>{s.why}</div>
               </div>
             ))}
@@ -66,6 +73,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
           {plan.forecast && hearth.forecastIsSample && (
             <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>sample forecast · demo mode</span>
           )}
+          <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
         </div>
         {plan.forecast ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(88px,1fr))', gap: 8 }}>
@@ -78,7 +86,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', color: 'var(--fg-4)' }}>{f.day}</div>
                 <i className={f.icon} style={{ fontSize: 20, color: f.iconColor }} />
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>
-                  {f.hi}°<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-4)' }}> /{f.lo}°</span>
+                  {t(f.hi)}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-4)' }}> /{t(f.lo)}</span>
                 </div>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: f.bandColor }}>
                   {f.band}
@@ -114,7 +122,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
               <div style={{ fontSize: 44, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--accent-blue)', lineHeight: 1 }}>
-                {plan.nightFlush.delta}°
+                {fmtTempDelta(plan.nightFlush.delta, tempUnit)}
               </div>
               <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>cooler outside than your setpoint, most nights this week</div>
             </div>
@@ -127,12 +135,24 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         )}
 
         <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>This week's bands</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>This week's bands</div>
+            <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
+          </div>
           {plan.bands.map((bd) => (
             <div key={bd.name} className="h-lift" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, padding: '8px 10px', borderRadius: 10, background: 'var(--bg-3)', border: '1px solid var(--bg-6)' }}>
               <span style={{ width: 8, height: 8, borderRadius: 100, background: bd.dot, flex: 'none' }} />
               <span style={{ color: 'var(--fg-1)', fontWeight: 600, minWidth: 76 }}>{bd.name}</span>
-              <span style={{ color: 'var(--fg-4)', flex: 1 }}>{bd.range}</span>
+              <span style={{ color: 'var(--fg-4)', flex: 1 }}>
+                {bd.loF === null
+                  ? `below ${t(bd.hiF)}`
+                  : bd.hiF === null
+                    ? `above ${t(bd.loF)}`
+                    : `${t(bd.loF)}–${t(bd.hiF)}`}
+                {bd.note
+                  ? `: ${bd.note}`
+                  : `: pre-cool ${t(bd.preF)}, peak ${t(bd.peakF)}`}
+              </span>
               {plan.forecast && <span style={{ color: 'var(--fg-2)', fontWeight: 600 }}>{bd.count}</span>}
             </div>
           ))}
@@ -151,7 +171,7 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: 'var(--fg-3)', lineHeight: 1.5, borderTop: '1px solid var(--bg-6)', paddingTop: 10, marginTop: 2 }}>
           <i className="ph ph-hand-heart" style={{ fontSize: 16, color: 'var(--fg-4)', flex: 'none', marginTop: 2 }} />
-          {plan.peak.temp} at peak is a real comfort change. A temperature you'll actually keep beats the
+          {t(plan.peak.tempF)} at peak is a real comfort change. A temperature you'll actually keep beats the
           theoretical optimum. Adjust the plan, not your patience.
         </div>
       </div>

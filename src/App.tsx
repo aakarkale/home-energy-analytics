@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, Theme } from './types'
+import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, TempUnit, Theme } from './types'
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
@@ -23,6 +23,7 @@ const THEME_KEY = 'hearth-theme'
 // Per-tab, deliberately not localStorage: opening the demo should not replace
 // the marketing page for this browser forever.
 const DEMO_VISIT_KEY = 'hearth-demo-visit'
+const TEMP_UNIT_KEY = 'hearth-temp-unit'
 
 function partOfDay(): string {
   const h = new Date().getHours()
@@ -40,6 +41,13 @@ export default function App() {
       return t === 'light' || t === 'dark' ? t : 'dark'
     } catch {
       return 'dark'
+    }
+  })
+  const [tempUnit, setTempUnitState] = useState<TempUnit>(() => {
+    try {
+      return localStorage.getItem(TEMP_UNIT_KEY) === 'C' ? 'C' : 'F'
+    } catch {
+      return 'F'
     }
   })
   const [page, setPage] = useState<Page>('overview')
@@ -187,6 +195,15 @@ export default function App() {
     isMobile,
     elec,
     light,
+    tempUnit,
+    setTempUnit: (u: TempUnit) => {
+      try {
+        localStorage.setItem(TEMP_UNIT_KEY, u)
+      } catch {
+        /* private mode */
+      }
+      setTempUnitState(u)
+    },
     acc,
     accSoft,
 

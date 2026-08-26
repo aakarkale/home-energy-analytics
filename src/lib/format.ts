@@ -18,6 +18,35 @@ export function dateFromKey(d: string): Date {
 
 export const dowOf = (d: string) => dateFromKey(d).getDay()
 
+/**
+ * '08/07/2026'. mm/dd/yyyy is the platform's canonical date format: whatever
+ * order a CSV arrives in, every date is normalised on parse and shown this way.
+ */
+export const fmtDateNum = (d: string) => {
+  const dt = dateFromKey(d)
+  const p = (x: number) => String(x).padStart(2, '0')
+  return `${p(dt.getMonth() + 1)}/${p(dt.getDate())}/${dt.getFullYear()}`
+}
+
+/** '08/07' — the same order, short enough for a dense row label. */
+export const fmtDateShortNum = (d: string) => fmtDateNum(d).slice(0, 5)
+
+export type TempUnit = 'F' | 'C'
+
+/** Engine temperatures are °F; the reader picks the unit. */
+export const toC = (f: number) => (f - 32) * (5 / 9)
+
+/** '72°F' / '22°C' */
+export const fmtTemp = (f: number, unit: TempUnit) =>
+  `${Math.round(unit === 'C' ? toC(f) : f)}°${unit}`
+
+/**
+ * A temperature *difference*, which scales by 5/9 without the 32° offset —
+ * applying the absolute formula to a delta would be silently wrong.
+ */
+export const fmtTempDelta = (f: number, unit: TempUnit) =>
+  `${Math.round(unit === 'C' ? f * (5 / 9) : f)}°${unit}`
+
 /** 'Thu Aug 3' */
 export const fmtDayShort = (d: string) =>
   dateFromKey(d)
