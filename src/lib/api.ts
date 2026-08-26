@@ -94,6 +94,16 @@ export async function saveProfile(userId: string, patch: Partial<Profile>): Prom
   if (error) console.warn('saveProfile failed:', error.message)
 }
 
+/** Has this account finished setup before? Onboarding runs once per account. */
+export async function fetchOnboarded(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('onboarded_at')
+    .eq('id', userId)
+    .maybeSingle()
+  return !!data?.onboarded_at
+}
+
 export async function markOnboarded(userId: string): Promise<void> {
   const { error } = await supabase
     .from('profiles')
@@ -246,4 +256,30 @@ export async function saveAnnotation(
       { onConflict: 'user_id,upload_id,date_key' },
     )
   if (error) console.warn('saveAnnotation failed:', error.message)
+}
+
+/**
+ * Removes everything this account stores: uploads, answers, annotations and the
+ * home-facts profile. The sign-in itself survives, since deleting an auth user
+ * needs the service role and cannot be done from the browser.
+ */
+export async function deleteAllUserData(userId: string): Promise<{ error?: string }> {
+  for (const table of ['annotations', 'answers', 'uploads'] as const) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId)
+    if (error) return { error: `${table}: ${error.message}` }
+  }
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      zip: null,
+      home_type: null,
+      ac_type: null,
+      occupancy: null,
+      has_ev: false,
+      has_pool: false,
+      has_electric_dryer: false,
+      onboarded_at: null,
+    })
+    .eq('id', userId)
+  return error ? { error: error.message } : {}
 }

@@ -18,6 +18,8 @@ export const PAGE_PATHS: Record<Page, string> = {
   rates: '/rates',
   playbook: '/playbook',
   activity: '/activity',
+  settings: '/settings',
+  account: '/account',
 }
 
 /** Public paths that are not app pages. */
@@ -36,6 +38,8 @@ export const PAGE_TITLE: Record<Page, string> = {
   rates: 'Rates',
   playbook: 'AC Playbook',
   activity: 'Activity',
+  settings: 'Settings',
+  account: 'Account',
 }
 
 export const SITE_NAME = 'Hearth'

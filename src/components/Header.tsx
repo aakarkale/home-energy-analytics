@@ -1,4 +1,6 @@
 import type { Hearth } from '../types'
+import type { HearthStore } from '../store'
+import { ProfileMenu } from './ProfileMenu'
 import { FUEL_TABS, PAGE_TITLES } from '../model'
 
 function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
@@ -50,12 +52,15 @@ function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
   )
 }
 
-export function Header({ hearth }: { hearth: Hearth }) {
+export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
   const { isMobile, isDesktop } = hearth
   const themeIcon = hearth.light ? 'ph ph-moon' : 'ph ph-sun'
   const themeLabel = hearth.light ? 'Dark mode' : 'Light mode'
   const title = hearth.page === 'overview' ? hearth.greeting : PAGE_TITLES[hearth.page]
   const uploadStep = hearth.isAuthed || hearth.hasMyData ? 2 : 0
+  // Settings and Account are not per-fuel views, so the fuel switch would only
+  // change something you cannot see from here.
+  const showFuel = hearth.page !== 'settings' && hearth.page !== 'account'
 
   return (
     <div
@@ -123,7 +128,7 @@ export function Header({ hearth }: { hearth: Hearth }) {
 
       {isDesktop && (
         <>
-          <FuelTabs hearth={hearth} mobile={false} />
+          {showFuel && <FuelTabs hearth={hearth} mobile={false} />}
           <button
             onClick={() => hearth.openOb(uploadStep)}
             className="h-interactive btn-acc press98"
@@ -172,25 +177,26 @@ export function Header({ hearth }: { hearth: Hearth }) {
 
       {isMobile && (
         <>
-          <button
-            onClick={hearth.toggleTheme}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 100,
-              border: '1px solid var(--glass-12)',
-              cursor: 'pointer',
-              background: 'var(--glass-11)',
-              color: 'var(--fg-1)',
-              fontSize: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
-            <i className={themeIcon} />
-          </button>
+          <ProfileMenu hearth={hearth} store={store} align="down">
+            <span
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 100,
+                border: '1px solid var(--glass-12)',
+                background: 'var(--glass-11)',
+                color: 'var(--fg-1)',
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 'none',
+              }}
+            >
+              {hearth.userLabel.initials}
+            </span>
+          </ProfileMenu>
           <button
             onClick={() => hearth.openOb(uploadStep)}
             style={{
@@ -210,7 +216,7 @@ export function Header({ hearth }: { hearth: Hearth }) {
           >
             <i className="ph ph-plus" />
           </button>
-          <FuelTabs hearth={hearth} mobile />
+          {showFuel && <FuelTabs hearth={hearth} mobile />}
         </>
       )}
     </div>

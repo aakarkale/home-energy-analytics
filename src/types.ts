@@ -3,7 +3,7 @@ import type { Insight, QDef, SavingItem } from './lib/content'
 import type { AcPlan } from './lib/acplan'
 import type { RatesAnalysis } from './lib/rates'
 
-export type Page = 'overview' | 'energy' | 'rates' | 'playbook' | 'activity'
+export type Page = 'overview' | 'energy' | 'rates' | 'playbook' | 'activity' | 'settings' | 'account'
 export type Fuel = 'electric' | 'gas'
 export type Metric = 'usage' | 'cost'
 export type Theme = 'dark' | 'light'
@@ -65,6 +65,9 @@ export interface Hearth {
   mode: Mode
   isAuthed: boolean
   hasMyData: boolean
+  /** True once this account has finished the setup wizard. Drives whether the
+   *  "replay setup" affordance is still worth showing. */
+  onboarded: boolean
   greeting: string
   subtitle: string
   userLabel: { name: string; sub: string; initials: string }

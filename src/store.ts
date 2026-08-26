@@ -90,6 +90,13 @@ export interface HearthStore {
   requestPasswordReset: (email: string) => Promise<{ error?: string }>
   completePasswordReset: (pw: string) => Promise<{ error?: string }>
   saveProfilePatch: (patch: Partial<Profile>) => void
+  /** True once this account has completed setup; setup then never reopens itself. */
+  onboarded: boolean
+  /** Authoritative check straight after sign-in, before the profile has loaded. */
+  checkOnboarded: () => Promise<boolean>
+  completeOnboarding: () => void
+  deleteAllMyData: () => Promise<{ error?: string }>
+  clearGuestData: () => void
   commitUploads: (parsed: ParsedUpload[], billing: { start: string; end: string } | null) => Promise<void>
   removeMyUpload: (fuel: Fuel) => Promise<void>
   setAnswerValue: (key: string, vals: string[] | null) => void
@@ -131,6 +138,7 @@ export function useHearthStore(): HearthStore {
     readJson(GUEST_EVMETA_KEY, {}),
   )
   const [forecast, setForecast] = useState<ForecastDay[] | null>(null)
+  const [onboarded, setOnboarded] = useState(false)
   const loadedFor = useRef<string | null>(null)
 
   const setMode = useCallback((m: Mode) => {
@@ -165,6 +173,7 @@ export function useHearthStore(): HearthStore {
     const userId = session?.user?.id ?? null
     if (!userId) {
       loadedFor.current = null
+      setOnboarded(false)
       setAccountUploads({})
       setAccountAnswers({})
       setAccountEvMeta({})
@@ -174,13 +183,15 @@ export function useHearthStore(): HearthStore {
     loadedFor.current = userId
     let cancelled = false
     ;(async () => {
-      const [prof, uploads, answers] = await Promise.all([
+      const [prof, uploads, answers, done] = await Promise.all([
         api.fetchProfile(userId),
         api.fetchUploads(userId),
         api.fetchAnswers(userId),
+        api.fetchOnboarded(userId),
       ])
       if (cancelled) return
       setProfile(prof)
+      setOnboarded(done)
       setAccountUploads(uploads)
       setAccountAnswers(answers)
       const ids: Partial<Record<Fuel, string>> = {}
@@ -300,6 +311,7 @@ export function useHearthStore(): HearthStore {
         }
         setAccountUploads(next)
         void api.markOnboarded(session.user.id)
+        setOnboarded(true)
       } else {
         setGuestUploads((prev) => {
           const next = { ...prev }
@@ -339,6 +351,53 @@ export function useHearthStore(): HearthStore {
     const res = await api.updatePassword(pw)
     if (!res.error) setRecovering(false)
     return res
+  }, [])
+
+  const checkOnboarded = useCallback(async () => {
+    const { data } = await api.supabase.auth.getSession()
+    const uid = data.session?.user?.id
+    if (!uid) return false
+    const done = await api.fetchOnboarded(uid)
+    setOnboarded(done)
+    return done
+  }, [])
+
+  /** The wizard reached its end. Records it so it never runs itself again. */
+  const completeOnboarding = useCallback(() => {
+    setOnboarded(true)
+    if (session) void api.markOnboarded(session.user.id)
+  }, [session])
+
+  const deleteAllMyData = useCallback(async () => {
+    const uid = session?.user?.id
+    if (!uid) return { error: 'Not signed in.' }
+    const res = await api.deleteAllUserData(uid)
+    if (res.error) return res
+    setAccountUploads({})
+    setAccountAnswers({})
+    setAccountEvMeta({})
+    setOnboarded(false)
+    setProfile((p) => ({
+      ...p,
+      zip: null,
+      home_type: null,
+      ac_type: null,
+      occupancy: null,
+      has_ev: false,
+      has_pool: false,
+      has_electric_dryer: false,
+    }))
+    return {}
+  }, [session])
+
+  /** Wipes the guest-mode copies held in this browser. */
+  const clearGuestData = useCallback(() => {
+    setGuestUploads({})
+    setGuestAnswers({})
+    setGuestEvMeta({})
+    persistGuestUploads({})
+    writeJson(GUEST_ANSWERS_KEY, {})
+    writeJson(GUEST_EVMETA_KEY, {})
   }, [])
 
   const signOutUser = useCallback(async () => {
@@ -382,6 +441,11 @@ export function useHearthStore(): HearthStore {
     requestPasswordReset: api.requestPasswordReset,
     completePasswordReset,
     saveProfilePatch,
+    onboarded,
+    checkOnboarded,
+    completeOnboarding,
+    deleteAllMyData,
+    clearGuestData,
     commitUploads,
     removeMyUpload,
     setAnswerValue,
