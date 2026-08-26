@@ -192,12 +192,19 @@ export function Onboarding({
       } else if (res.needsConfirm) {
         setTab('signin')
         setNotice('Check your inbox: confirm your email, then sign in here.')
-      } else hearth.obNext()
+      } else {
+        store.setMode('live')
+        hearth.obNext()
+      }
     } else {
       const res = await store.signIn(email.trim(), password)
       setAuthBusy(false)
       if (res.error) setAuthError(res.error)
-      else hearth.obNext()
+      else {
+        // Signing in shows your own data, never a leftover demo session.
+        store.setMode('live')
+        hearth.obNext()
+      }
     }
   }
 
