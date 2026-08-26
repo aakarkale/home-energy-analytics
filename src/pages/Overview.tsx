@@ -204,7 +204,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
                   <div
                     key={s.label}
                     tabIndex={0}
-                    aria-label={`${s.label}: ${s.amt} per year`}
+                    aria-label={`${s.label}: ${s.amt.replace('/yr', '')} per year`}
                     onPointerEnter={() => setSave(si)}
                     onPointerLeave={() => setSave(null)}
                     onFocus={() => setSave(si)}
@@ -230,7 +230,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
                         }}
                       />
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--fg-4)', lineHeight: 1.45, maxHeight: save === si ? 40 : 0, opacity: save === si ? 1 : 0, overflow: 'hidden', transition: 'max-height 200ms ease, opacity 150ms ease' }}>
+                    <div style={{ fontSize: 11, color: 'var(--fg-4)', lineHeight: 1.45, maxHeight: save === si ? 140 : 0, opacity: save === si ? 1 : 0, overflow: 'hidden', transition: 'max-height 200ms ease, opacity 150ms ease' }}>
                       {s.note}
                     </div>
                   </div>

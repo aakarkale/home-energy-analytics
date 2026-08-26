@@ -4,7 +4,13 @@ import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
 import { buildRates } from './lib/rates'
-import { buildInsights, buildQuestions, buildSavings, precoolEstimate } from './lib/content'
+import {
+  buildInsights,
+  buildQuestions,
+  buildSavings,
+  precoolEstimate,
+  savingsTotalPerYr,
+} from './lib/content'
 import { buildAcPlan } from './lib/acplan'
 import { SAMPLE_FORECAST } from './lib/sample'
 import { fmtMoney, fmtMonthDay, fmtNum } from './lib/format'
@@ -109,9 +115,12 @@ export default function App() {
       out[f] = {
         analysis,
         rates: f === 'electric' ? buildRates(rec.parsed, analysis.tou, rec.billing) : null,
-        insights: buildInsights(analysis, store.profile),
-        savings: buildSavings(analysis, store.profile),
-        questions: buildQuestions(analysis, store.profile),
+        insights: buildInsights(analysis, store.profile, store.answers, store.evMeta),
+        savings: buildSavings(analysis, store.profile, store.answers, store.evMeta),
+        answerLift:
+          savingsTotalPerYr(analysis, store.profile, store.answers, store.evMeta) -
+          savingsTotalPerYr(analysis, store.profile),
+        questions: buildQuestions(analysis, store.profile, store.answers, store.evMeta),
         fileName: rec.parsed.fileName,
         rangeNote: `${fmtMonthDay(analysis.periodStart)} – ${fmtMonthDay(analysis.periodEnd)} · ${analysis.granularity} · ${rec.parsed.rowCount} rows`,
         totalNote: `${fmtNum(analysis.totalUsage, 1)} ${analysis.unit} · ${fmtMoney(analysis.totalCost)}`,
@@ -119,7 +128,7 @@ export default function App() {
       }
     }
     return out
-  }, [store.uploads, store.profile])
+  }, [store.uploads, store.profile, store.answers, store.evMeta])
 
   // Who sees the app rather than the marketing page. Derived every render, never
   // remembered: a signed-in user, a guest holding their own upload, or someone
@@ -199,9 +208,11 @@ export default function App() {
         bundles.electric?.analysis ?? null,
         store.profile,
         forecast,
-        bundles.electric ? precoolEstimate(bundles.electric.analysis, store.profile) : null,
+        bundles.electric
+          ? precoolEstimate(bundles.electric.analysis, store.profile, store.answers, store.evMeta)
+          : null,
       ),
-    [bundles.electric, store.profile, forecast],
+    [bundles.electric, store.profile, forecast, store.answers, store.evMeta],
   )
 
   const bundle = bundles[fuel] ?? null
