@@ -28,6 +28,8 @@ import { Energy } from './pages/Energy'
 import { Rates } from './pages/Rates'
 import { Playbook } from './pages/Playbook'
 import { Activity } from './pages/Activity'
+import { Settings } from './pages/Settings'
+import { Account } from './pages/Account'
 
 const THEME_KEY = 'hearth-theme'
 // Per-tab, deliberately not localStorage: opening the demo should not replace
@@ -205,24 +207,25 @@ export default function App() {
   const bundle = bundles[fuel] ?? null
   const isAuthed = !!store.session
 
-  const firstName =
-    store.mode === 'demo'
-      ? 'Sam'
-      : (store.profile.display_name?.trim().split(/\s+/)[0] ??
-        store.session?.user?.email?.split('@')[0] ??
-        'there')
+  const email = store.session?.user?.email ?? ''
+  // An account created without a name saves '' rather than null, so a plain
+  // ?? would leave the greeting hanging after its comma.
+  const savedName = store.profile.display_name?.trim() || ''
+  const handle = email.split('@')[0] || ''
+  const fullName = savedName || handle
+
+  const firstName = store.mode === 'demo' ? 'Sam' : fullName.split(/\s+/)[0] || 'there'
   const greeting = `Good ${partOfDay()}, ${firstName}`
 
-  const email = store.session?.user?.email ?? ''
   const userLabel =
     store.mode === 'demo'
       ? { name: 'Demo home', sub: 'Sample data', initials: 'DH' }
       : isAuthed
         ? {
-            name: store.profile.display_name || email,
+            name: fullName || email,
             sub: email,
             initials:
-              (store.profile.display_name || email)
+              (fullName || email)
                 .split(/[\s@._-]+/)
                 .filter(Boolean)
                 .slice(0, 2)
@@ -259,8 +262,18 @@ export default function App() {
     mode: store.mode,
     isAuthed,
     hasMyData: store.hasMyData,
+    onboarded: store.onboarded,
     greeting,
-    subtitle: bundle ? bundle.analysis.rangeLabel : 'NO DATA YET',
+    // Settings and Account are not about a billing period, so the data range
+    // would be noise there.
+    subtitle:
+      page === 'settings'
+        ? 'PREFERENCES · UNITS · YOUR DATA'
+        : page === 'account'
+          ? (isAuthed ? email.toUpperCase() : 'GUEST · NOT SIGNED IN')
+          : bundle
+            ? bundle.analysis.rangeLabel
+            : 'NO DATA YET',
     userLabel,
 
     bundles,
@@ -421,7 +434,7 @@ export default function App() {
             background: 'var(--bg-0)',
           }}
         >
-          <Header hearth={hearth} />
+          <Header hearth={hearth} store={store} />
 
           <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px' }}>
             <div
@@ -439,6 +452,8 @@ export default function App() {
               {page === 'rates' && <Rates hearth={hearth} />}
               {page === 'playbook' && <Playbook hearth={hearth} />}
               {page === 'activity' && <Activity hearth={hearth} />}
+              {page === 'settings' && <Settings hearth={hearth} store={store} />}
+              {page === 'account' && <Account hearth={hearth} store={store} />}
             </div>
           </div>
 

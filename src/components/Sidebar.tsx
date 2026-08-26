@@ -1,10 +1,19 @@
 import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { PAGE_PATHS } from '../lib/routes'
+import { ProfileMenu } from './ProfileMenu'
 import { NAV_PAGES } from '../model'
 
 export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
-  const { mode, isAuthed, hasMyData } = hearth
+  const { mode, isAuthed, hasMyData, onboarded } = hearth
+
+  // Once it is your own home on your own account, sample data is clutter. The
+  // toggle only survives as the way back out of demo mode.
+  const settled = isAuthed && hasMyData
+  const showDemoToggle = mode === 'demo' || !settled
+  // Setup runs once per account. After that, home facts live in Settings and
+  // new files go through the upload step, so replaying the wizard is noise.
+  const showReplay = !(isAuthed && onboarded)
   return (
     <div
       style={{
@@ -119,7 +128,7 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
           Create free account
         </button>
       )}
-      {(isAuthed || hasMyData) && (
+      {(isAuthed || hasMyData) && showDemoToggle && (
         <button
           onClick={() => hearth.setMode(mode === 'demo' ? 'live' : 'demo')}
           className="h-interactive hov-replay"
@@ -142,38 +151,32 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
           {mode === 'demo' ? 'Back to my data' : 'View demo'}
         </button>
       )}
-      <button
-        onClick={() => hearth.openOb(0)}
-        className="h-interactive hov-replay"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '9px 10px',
-          borderRadius: 10,
-          border: '1px solid var(--bg-6)',
-          cursor: 'pointer',
-          fontFamily: 'var(--font-dm-sans)',
-          fontSize: 13,
-          fontWeight: 500,
-          background: 'transparent',
-          color: 'var(--fg-3)',
-        }}
-      >
-        <i className="ph ph-sparkle" style={{ fontSize: 16 }} />
-        Replay setup
-      </button>
+      {showReplay && (
+        <button
+          onClick={() => hearth.openOb(0)}
+          className="h-interactive hov-replay"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '9px 10px',
+            borderRadius: 10,
+            border: '1px solid var(--bg-6)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-dm-sans)',
+            fontSize: 13,
+            fontWeight: 500,
+            background: 'transparent',
+            color: 'var(--fg-3)',
+          }}
+        >
+          <i className="ph ph-sparkle" style={{ fontSize: 16 }} />
+          Replay setup
+        </button>
+      )}
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '12px 8px 4px',
-          borderTop: '1px solid var(--bg-6)',
-          marginTop: 10,
-        }}
-      >
+      <div style={{ borderTop: '1px solid var(--bg-6)', marginTop: 10, paddingTop: 8 }}>
+        <ProfileMenu hearth={hearth} store={store} side="left">
         <div
           style={{
             width: 28,
@@ -216,24 +219,8 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
             {hearth.userLabel.sub}
           </div>
         </div>
-        {isAuthed && (
-          <button
-            onClick={() => void store.signOutUser()}
-            title="Sign out"
-            className="h-interactive hov-fg0"
-            style={{
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              color: 'var(--fg-4)',
-              fontSize: 15,
-              padding: 4,
-              flex: 'none',
-            }}
-          >
-            <i className="ph ph-sign-out" />
-          </button>
-        )}
+        <i className="ph ph-caret-up-down" style={{ fontSize: 14, color: 'var(--fg-4)', flex: 'none' }} />
+        </ProfileMenu>
       </div>
     </div>
   )

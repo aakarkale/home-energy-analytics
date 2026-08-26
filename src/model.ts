@@ -14,6 +14,8 @@ export const PAGE_TITLES: Record<Page, string> = {
   rates: 'Rates',
   playbook: 'AC Playbook',
   activity: 'Activity',
+  settings: 'Settings',
+  account: 'Account',
 }
 
 export const FUEL_TABS: { id: Fuel; label: string; icon: string; activeFg: string }[] = [

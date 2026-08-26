@@ -214,13 +214,19 @@ export function Onboarding({
       }
     } else {
       const res = await store.signIn(email.trim(), password)
-      setAuthBusy(false)
-      if (res.error) setAuthError(res.error)
-      else {
-        // Signing in shows your own data, never a leftover demo session.
-        store.setMode('live')
-        hearth.obNext()
+      if (res.error) {
+        setAuthBusy(false)
+        setAuthError(res.error)
+        return
       }
+      // Signing in shows your own data, never a leftover demo session.
+      store.setMode('live')
+      // Setup runs once per account. A returning user goes straight to their
+      // dashboard; home facts are editable later under Settings.
+      const done = await store.checkOnboarded()
+      setAuthBusy(false)
+      if (done) hearth.closeOb()
+      else hearth.obNext()
     }
   }
 
@@ -268,6 +274,9 @@ export function Onboarding({
       await store.commitUploads(parsed, billing)
       setFinishing(false)
     }
+    // Reaching the end is what makes setup done, file or no file. From here on
+    // the same fields live in Settings.
+    store.completeOnboarding()
     hearth.closeOb()
   }
 
