@@ -8,6 +8,16 @@ import { buildInsights, buildQuestions, buildSavings, precoolEstimate } from './
 import { buildAcPlan } from './lib/acplan'
 import { SAMPLE_FORECAST } from './lib/sample'
 import { fmtMoney, fmtMonthDay, fmtNum } from './lib/format'
+import {
+  locate,
+  navigate,
+  PAGE_PATHS,
+  PAGE_TITLE,
+  ROUTES,
+  SITE_NAME,
+  useDocumentTitle,
+  usePath,
+} from './lib/routes'
 import { Landing } from './components/Landing'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
@@ -50,7 +60,11 @@ export default function App() {
       return 'F'
     }
   })
-  const [page, setPage] = useState<Page>('overview')
+  const path = usePath()
+  const route = locate(path)
+  // The URL is the source of truth for which screen is showing. An unknown
+  // path inside the app falls back to Overview rather than a blank shell.
+  const page: Page = route.page ?? 'overview'
   const [fuel, setFuel] = useState<Fuel>('electric')
   const [metric, setMetric] = useState<Metric>('usage')
   const [filter, setFilter] = useState<EventFilter>('All')
@@ -129,6 +143,41 @@ export default function App() {
     setObStep(0)
     setOb(true)
   }, [store.recovering])
+
+  // The URL asks for the auth dialog directly, so /signin and /signup are
+  // linkable and countable like any other page.
+  useEffect(() => {
+    if (!route.authTab) return
+    setObTab(route.authTab)
+    setObStep(0)
+    setOb(true)
+  }, [route.authTab])
+
+  // Reconcile the URL with what the visitor may actually see. Replaces rather
+  // than pushes, so a corrected address never traps the back button.
+  useEffect(() => {
+    if (!store.authReady) return
+    if (store.recovering) {
+      if (!route.isReset) navigate(ROUTES.resetPassword, true)
+      return
+    }
+    if (route.isReset) {
+      navigate(inApp ? PAGE_PATHS.overview : ROUTES.landing, true)
+      return
+    }
+    if (inApp) {
+      if (!route.page && !route.authTab) navigate(PAGE_PATHS.overview, true)
+    } else if (route.page) {
+      // A deep link into the app without a session or data shows the front door.
+      navigate(ROUTES.landing, true)
+    }
+  }, [store.authReady, store.recovering, inApp, route.page, route.authTab, route.isReset])
+
+  useDocumentTitle(
+    inApp && route.page
+      ? `${PAGE_TITLE[route.page]} · ${SITE_NAME}`
+      : `${SITE_NAME} | Home Energy Analytics`,
+  )
 
   // Until the user explicitly picks a fuel, follow whichever one has data —
   // an explicit pick sticks so the empty state stays reachable.
@@ -224,7 +273,7 @@ export default function App() {
     otherDraft,
     evMeta: store.evMeta,
 
-    go: (p) => setPage(p),
+    go: (p) => navigate(PAGE_PATHS[p]),
     setFuel: (f) => {
       userPickedFuel.current = true
       setFuel(f)
@@ -247,7 +296,10 @@ export default function App() {
       if (tab) setObTab(tab)
       setOb(true)
     },
-    closeOb: () => setOb(false),
+    closeOb: () => {
+      setOb(false)
+      if (locate(window.location.pathname).authTab) navigate(ROUTES.landing, true)
+    },
     obNext: () => setObStep((s) => Math.min(3, s + 1)),
     obBack: () => setObStep((s) => Math.max(0, s - 1)),
 
@@ -292,14 +344,13 @@ export default function App() {
       setDemoVisit(true)
       store.setMode('demo')
       setOb(false)
+      navigate(PAGE_PATHS.overview)
       return
     }
     // Sign up / sign in open over the landing page. The app appears only once
     // there is a real session, so a user awaiting email confirmation is never
     // dropped into the demo dashboard.
-    setObTab(kind)
-    setObStep(0)
-    setOb(true)
+    navigate(kind === 'create' ? ROUTES.signUp : ROUTES.signIn)
   }
 
   // Restoring a session is async; painting the landing page first would flash

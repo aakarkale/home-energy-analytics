@@ -1,5 +1,6 @@
 import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
+import { PAGE_PATHS } from '../lib/routes'
 import { NAV_PAGES } from '../model'
 
 export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
@@ -57,9 +58,16 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
       {NAV_PAGES.map((nav) => {
         const active = hearth.page === nav.id
         return (
-          <button
+          <a
             key={nav.id}
-            onClick={() => hearth.go(nav.id)}
+            href={PAGE_PATHS[nav.id]}
+            onClick={(e) => {
+              // Let the browser handle modified clicks (new tab, new window).
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+              e.preventDefault()
+              hearth.go(nav.id)
+            }}
+            aria-current={active ? 'page' : undefined}
             className="h-interactive hov-fg0"
             style={{
               display: 'flex',
@@ -74,13 +82,14 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
               fontWeight: 500,
               letterSpacing: '-0.01em',
               textAlign: 'left',
+              textDecoration: 'none',
               background: active ? 'var(--bg-4)' : 'transparent',
               color: active ? 'var(--fg-0)' : 'var(--fg-3)',
             }}
           >
             <i className={nav.icon} style={{ fontSize: 18 }} />
             {nav.label}
-          </button>
+          </a>
         )
       })}
 

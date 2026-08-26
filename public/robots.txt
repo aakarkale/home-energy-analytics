@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://home-energy-analytics.vercel.app/sitemap.xml
