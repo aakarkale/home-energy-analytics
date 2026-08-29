@@ -143,5 +143,12 @@ export const SAMPLE_FORECAST: ForecastDay[] = [
   { day: 'SUN', hi: 82, lo: 60, code: 2 },
 ]
 
+/** Two days of hourly outdoor temperature for the demo home, from midnight.
+ *  A plain diurnal curve: coolest before dawn, hottest mid-afternoon. */
+export const SAMPLE_HOURS: number[] = [
+  70, 67, 64, 63, 61, 61, 61, 63, 64, 67, 70, 72, 75, 78, 81, 82, 84, 84, 84, 82, 81, 78, 75, 72,
+  72, 69, 67, 65, 63, 63, 63, 65, 67, 69, 72, 75, 78, 81, 83, 85, 87, 87, 87, 85, 83, 81, 78, 75,
+]
+
 /** Demo billing cycle (matches the design's "Jul 24 – Aug 23" statement). */
 export const SAMPLE_BILLING = { start: '2026-07-25', end: '2026-08-24' }
