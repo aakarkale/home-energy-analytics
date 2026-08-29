@@ -2,7 +2,8 @@ import type { CSSProperties } from 'react'
 import type { Hearth } from '../types'
 import { fmtTemp, fmtTempDelta } from '../lib/format'
 import { TempToggle } from '../components/chart'
-import { TodayCurve } from '../components/TodayCurve'
+import { SCHEDULE_GAP, TodayCurve, scheduleColumns, visibleBlocks } from '../components/TodayCurve'
+import { useMediaQuery } from '../hooks'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -12,6 +13,10 @@ const card: CSSProperties = {
 
 export function Playbook({ hearth }: { hearth: Hearth }) {
   const { plan, tempUnit } = hearth
+  // Proportional cards only once the narrowest block can still hold its own
+  // label: a 3-hour pre-cool is an eighth of the day, and below this it would
+  // hyphenate. Narrower than that the row falls back to equal columns.
+  const proportional = useMediaQuery('(min-width: 1180px)')
   const hasElectric = !!hearth.bundles.electric
   const t = (f: number | null) => (f === null ? '—' : fmtTemp(f, tempUnit))
   const unitToggle = <TempToggle unit={tempUnit} onChange={hearth.setTempUnit} />
@@ -54,18 +59,29 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
               {unitToggle}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
-            {plan.schedule.map((s, si) => (
+          {/* Card widths are the blocks' real durations, so they divide the day
+              exactly as the hourly chart below them does. Below the breakpoint
+              there is no room for that and they stack instead. */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: proportional
+                ? scheduleColumns(plan.schedule)
+                : 'repeat(auto-fit,minmax(160px,1fr))',
+              gap: SCHEDULE_GAP,
+            }}
+          >
+            {visibleBlocks(plan.schedule).map((s, si) => (
               <div
                 key={s.period}
                 className="h-fade-up h-lift"
-                style={{ borderRadius: 14, padding: 14, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', flexDirection: 'column', gap: 6, animationDelay: `${si * 70}ms` }}
+                style={{ minWidth: 0, borderRadius: 14, padding: 14, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', flexDirection: 'column', gap: 6, animationDelay: `${si * 70}ms` }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: s.labelColor }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: s.labelColor, whiteSpace: 'nowrap' }}>
                     {s.period}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>{s.time}</span>
+                  <span style={{ fontSize: 11, color: 'var(--fg-4)', whiteSpace: 'nowrap' }}>{s.time}</span>
                 </div>
                 <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', color: s.tempColor, lineHeight: 1 }}>{t(s.tempF)}</div>
                 <div style={{ fontSize: 12, color: 'var(--fg-3)', lineHeight: 1.4 }}>{s.why}</div>

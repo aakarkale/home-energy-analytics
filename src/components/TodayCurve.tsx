@@ -13,7 +13,7 @@
 // keeps labels and the focus dot round and legible at any width.
 
 import type { CSSProperties } from 'react'
-import type { AcPlan } from '../lib/acplan'
+import type { AcPlan, ScheduleBlock } from '../lib/acplan'
 import type { TempUnit } from '../lib/format'
 import { fmtTemp, hourShort } from '../lib/format'
 import { HoverChart, type TipModel } from './chart'
@@ -23,6 +23,25 @@ const OUTDOOR = '#ff4538'
 const SETPOINT = '#2995ff'
 
 const H = 168
+
+/** The schedule cards and the chart bands beneath them must divide the day
+ *  identically or the two stop reading as one thing, so both take their columns
+ *  from here. Widths are proportional to each block's real duration: a 3-hour
+ *  pre-cool is narrower than a 9-hour evening, and the chart's time axis says
+ *  the same. */
+export const SCHEDULE_GAP = 10
+
+/** Blocks that actually occupy time. A peak window at an unusual hour can clamp
+ *  one to zero length, and an empty column would knock the two rows out of step. */
+export function visibleBlocks(schedule: ScheduleBlock[]): ScheduleBlock[] {
+  return schedule.filter((b) => b.toHour > b.fromHour)
+}
+
+export function scheduleColumns(schedule: ScheduleBlock[]): string {
+  return visibleBlocks(schedule)
+    .map((b) => `${b.toHour - b.fromHour}fr`)
+    .join(' ')
+}
 
 export function TodayCurve({
   plan,
@@ -70,18 +89,7 @@ export function TodayCurve({
   })
   if (run.length > 1) stepRuns.push(run.join(' '))
 
-  // One band per schedule block, spanning the hours it actually covers.
-  const bands = plan.schedule
-    .map((b, bi) => {
-      const idx = rows.map((r, i) => (r.block === bi ? i : -1)).filter((i) => i >= 0)
-      if (!idx.length) return null
-      const first = idx[0]!
-      const last = idx[idx.length - 1]!
-      const left = (first / rows.length) * 100
-      const width = ((last - first + 1) / rows.length) * 100
-      return { block: b, left, width }
-    })
-    .filter((b): b is NonNullable<typeof b> => b !== null)
+  const bands = visibleBlocks(plan.schedule)
 
   const nowIdx = rows.findIndex((r) => r.hour === nowHour)
 
@@ -135,40 +143,47 @@ export function TodayCurve({
       >
         {(hover) => (
           <>
-            {/* Bands first: they are the ground the curves sit on. */}
-            {bands.map((b) => (
-              <div
-                key={b.block.period}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 18,
-                  left: `${b.left}%`,
-                  width: `${b.width}%`,
-                  background: b.block.bg,
-                  borderLeft: `1px solid ${b.block.border}`,
-                  borderRight: `1px solid ${b.block.border}`,
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                }}
-              >
+            {/* Bands first: they are the ground the curves sit on. Same grid
+                template and gap as the cards above, so the columns line up. */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                bottom: 18,
+                display: 'grid',
+                gridTemplateColumns: scheduleColumns(plan.schedule),
+                gap: SCHEDULE_GAP,
+              }}
+            >
+              {bands.map((b) => (
                 <div
+                  key={b.period}
                   style={{
-                    padding: '5px 7px',
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    letterSpacing: '.05em',
-                    textTransform: 'uppercase',
-                    color: b.block.labelColor,
-                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    background: b.bg,
+                    border: `1px solid ${b.border}`,
+                    borderRadius: 8,
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
                   }}
                 >
-                  {b.block.period}
+                  <div
+                    style={{
+                      padding: '5px 7px',
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: '.05em',
+                      textTransform: 'uppercase',
+                      color: b.labelColor,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {b.period}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             <svg
               viewBox="0 0 100 100"
