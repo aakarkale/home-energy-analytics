@@ -291,6 +291,9 @@ export default function App() {
     bundle,
     plan,
     forecastIsSample: store.mode === 'demo',
+    forecastAt: store.mode === 'demo' ? null : store.forecastAt,
+    forecastLoading: store.mode === 'demo' ? false : store.forecastLoading,
+    refreshForecast: store.refreshForecast,
     zipMissing: store.mode === 'live' && !store.profile.zip,
 
     answers: store.answers,

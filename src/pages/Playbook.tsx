@@ -15,6 +15,18 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
   const t = (f: number | null) => (f === null ? '—' : fmtTemp(f, tempUnit))
   const unitToggle = <TempToggle unit={tempUnit} onChange={hearth.setTempUnit} />
 
+  // How old the numbers behind the plan are. Refreshed on sign-in, every 12
+  // hours, when a stale tab comes back, and whenever the button is pressed.
+  const freshness = (() => {
+    if (hearth.forecastLoading) return 'checking for new weather'
+    if (hearth.forecastAt === null) return ''
+    const mins = Math.round((Date.now() - hearth.forecastAt) / 60000)
+    if (mins < 2) return 'just updated'
+    if (mins < 60) return `updated ${mins} min ago`
+    const hrs = Math.round(mins / 60)
+    return hrs < 24 ? `updated ${hrs}h ago` : `updated ${Math.round(hrs / 24)}d ago`
+  })()
+
   return (
     <>
       {!hasElectric && hearth.mode === 'live' && (
@@ -72,6 +84,39 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Next 7 days</div>
           {plan.forecast && hearth.forecastIsSample && (
             <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>sample forecast · demo mode</span>
+          )}
+          {!hearth.forecastIsSample && !hearth.zipMissing && (
+            <>
+              <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>{freshness}</span>
+              <button
+                onClick={hearth.refreshForecast}
+                disabled={hearth.forecastLoading}
+                title="Pull the latest forecast now"
+                aria-label="Refresh forecast"
+                className="h-interactive hov-bg3 press98"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  border: '1px solid var(--bg-6)',
+                  background: 'transparent',
+                  borderRadius: 100,
+                  padding: '5px 11px',
+                  cursor: hearth.forecastLoading ? 'default' : 'pointer',
+                  fontFamily: 'var(--font-dm-sans)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: 'var(--fg-3)',
+                  opacity: hearth.forecastLoading ? 0.6 : 1,
+                }}
+              >
+                <i
+                  className={`ph ph-arrows-clockwise${hearth.forecastLoading ? ' h-spin' : ''}`}
+                  style={{ fontSize: 13 }}
+                />
+                {hearth.forecastLoading ? 'Refreshing' : 'Refresh'}
+              </button>
+            </>
           )}
           <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
         </div>

@@ -10,19 +10,36 @@ export interface ForecastDay {
   code: number
 }
 
+/** Reads inside this window are served from cache, so moving between pages
+ *  does not re-hit the API. A forced refresh ignores it. */
 const CACHE_MS = 60 * 60 * 1000
 
-export async function getForecast(zip: string): Promise<ForecastDay[] | null> {
+/** The forecast is never allowed to be older than this. A tab left open gets a
+ *  refresh on this interval, and one that wakes up staler than this refetches. */
+export const REFRESH_MS = 12 * 60 * 60 * 1000
+
+export interface ForecastResult {
+  days: ForecastDay[]
+  /** When these numbers came off the API, not when they were read from cache. */
+  fetchedAt: number
+}
+
+export async function getForecast(
+  zip: string,
+  opts?: { force?: boolean },
+): Promise<ForecastResult | null> {
   if (!/^\d{5}$/.test(zip)) return null
   const cacheKey = `hearth-forecast-${zip}`
-  try {
-    const raw = localStorage.getItem(cacheKey)
-    if (raw) {
-      const { ts, days } = JSON.parse(raw)
-      if (Date.now() - ts < CACHE_MS && Array.isArray(days)) return days
+  if (!opts?.force) {
+    try {
+      const raw = localStorage.getItem(cacheKey)
+      if (raw) {
+        const { ts, days } = JSON.parse(raw)
+        if (Date.now() - ts < CACHE_MS && Array.isArray(days)) return { days, fetchedAt: ts }
+      }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 
   try {
@@ -47,20 +64,29 @@ export async function getForecast(zip: string): Promise<ForecastDay[] | null> {
     const codes: number[] = wx?.daily?.weathercode ?? []
     if (!dates.length) return null
 
-    const days: ForecastDay[] = dates.slice(0, 7).map((d, i) => ({
-      day: new Date(d + 'T12:00:00')
-        .toLocaleDateString('en-US', { weekday: 'short' })
-        .toUpperCase(),
-      hi: Math.round(his[i]),
-      lo: Math.round(los[i]),
-      code: codes[i] ?? 0,
-    }))
+    // A malformed date from upstream would otherwise render as "INVALID DATE"
+    // in the forecast strip, so drop those rows rather than show them.
+    const days: ForecastDay[] = dates
+      .slice(0, 7)
+      .map((d, i) => {
+        const when = new Date(d + 'T12:00:00')
+        if (Number.isNaN(when.getTime())) return null
+        return {
+          day: when.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+          hi: Math.round(his[i]),
+          lo: Math.round(los[i]),
+          code: codes[i] ?? 0,
+        }
+      })
+      .filter((d): d is ForecastDay => d !== null && Number.isFinite(d.hi) && Number.isFinite(d.lo))
+    if (!days.length) return null
+    const fetchedAt = Date.now()
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), days }))
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: fetchedAt, days }))
     } catch {
       /* ignore */
     }
-    return days
+    return { days, fetchedAt }
   } catch {
     return null
   }

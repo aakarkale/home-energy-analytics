@@ -104,6 +104,7 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 @keyframes h-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes h-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes h-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes h-spin { to { transform: rotate(360deg); } }
 @keyframes h-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
 
 /* Line draw-in. Paths carry pathLength="1", so the dash math is exact
@@ -115,6 +116,7 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 .h-area { animation: h-fade 620ms 120ms ease-out both; }
 .h-wipe { animation: h-wipe 640ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .h-pop { animation: h-pop 300ms cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.h-spin { animation: h-spin 900ms linear infinite; }
 .h-fade-up { animation: h-fade-up 320ms ease-out both; }
 .h-tip { animation: h-fade-up 130ms ease-out both; }
 
@@ -139,7 +141,7 @@ select:focus-visible, input:focus-visible, button:focus-visible {
 .h-meter { transition: width 620ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .h-draw, .h-area, .h-wipe, .h-pop, .h-fade-up, .h-grow, .h-tip {
+  .h-draw, .h-area, .h-wipe, .h-pop, .h-spin, .h-fade-up, .h-grow, .h-tip {
     animation: none !important;
   }
   .h-draw { stroke-dasharray: none !important; }

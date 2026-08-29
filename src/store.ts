@@ -11,7 +11,7 @@ import * as api from './lib/api'
 import type { Session, UploadRecord } from './lib/api'
 import { parseGreenButtonCsv, type ParsedUpload } from './lib/parse'
 import { SAMPLE_BILLING, sampleUploads } from './lib/sample'
-import { getForecast, type ForecastDay } from './lib/weather'
+import { getForecast, REFRESH_MS, type ForecastDay } from './lib/weather'
 
 const MODE_KEY = 'hearth-mode'
 const GUEST_UPLOADS_KEY = 'hearth-guest-uploads'
@@ -19,6 +19,18 @@ const DEMO_ANSWERS_KEY = 'hearth-demo-answers'
 const DEMO_EVMETA_KEY = 'hearth-demo-evmeta'
 const GUEST_ANSWERS_KEY = 'hearth-guest-answers'
 const GUEST_EVMETA_KEY = 'hearth-guest-evmeta'
+const GUEST_PROFILE_KEY = 'hearth-guest-profile'
+
+const EMPTY_PROFILE: Profile = {
+  display_name: null,
+  zip: null,
+  home_type: null,
+  ac_type: null,
+  occupancy: null,
+  has_ev: false,
+  has_pool: false,
+  has_electric_dryer: false,
+}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -77,6 +89,10 @@ export interface HearthStore {
   answers: Record<string, string[]>
   evMeta: Record<string, EvMetaEntry>
   forecast: ForecastDay[] | null
+  /** When the forecast was pulled from the API. Null when there is none. */
+  forecastAt: number | null
+  forecastLoading: boolean
+  refreshForecast: () => void
 
   signUp: (
     name: string,
@@ -107,16 +123,12 @@ export function useHearthStore(): HearthStore {
   const [authReady, setAuthReady] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [recovering, setRecovering] = useState(false)
-  const [profile, setProfile] = useState<Profile>({
-    display_name: null,
-    zip: null,
-    home_type: null,
-    ac_type: null,
-    occupancy: null,
-    has_ev: false,
-    has_pool: false,
-    has_electric_dryer: false,
-  })
+  // A guest's home facts persist alongside their uploads and answers. Without
+  // this the ZIP vanished on every refresh, and with it the AC playbook's
+  // forecast, since a signed-out profile lives nowhere else.
+  const [profile, setProfile] = useState<Profile>(() =>
+    readJson<Profile>(GUEST_PROFILE_KEY, EMPTY_PROFILE),
+  )
   const [mode, setModeState] = useState<Mode>(() => {
     const m = readJson<string | null>(MODE_KEY, null)
     return m === 'live' ? 'live' : 'demo'
@@ -138,6 +150,12 @@ export function useHearthStore(): HearthStore {
     readJson(GUEST_EVMETA_KEY, {}),
   )
   const [forecast, setForecast] = useState<ForecastDay[] | null>(null)
+  const [forecastAt, setForecastAt] = useState<number | null>(null)
+  const [forecastLoading, setForecastLoading] = useState(false)
+  /** Guards against a slow earlier request landing after a newer one. */
+  const forecastReq = useRef(0)
+  /** The `user:zip` pair whose sign-in refresh has already been spent. */
+  const forcedFor = useRef<string | null>(null)
   const [onboarded, setOnboarded] = useState(false)
   const loadedFor = useRef<string | null>(null)
 
@@ -211,20 +229,68 @@ export function useHearthStore(): HearthStore {
   }, [session])
 
   // Forecast for the profile ZIP (live mode; demo uses the canned sample).
+  //
+  // The AC playbook is only as good as the weather behind it, so the forecast is
+  // pulled on load, forced fresh at sign-in, refreshed every REFRESH_MS while a
+  // tab stays open, refetched when a stale tab comes back to the foreground, and
+  // available on demand from the playbook itself.
+  const loadForecast = useCallback(
+    async (force: boolean) => {
+      const zip = profile.zip
+      if (!zip || !/^\d{5}$/.test(zip)) {
+        setForecast(null)
+        setForecastAt(null)
+        return
+      }
+      const req = ++forecastReq.current
+      setForecastLoading(true)
+      const res = await getForecast(zip, { force })
+      if (req !== forecastReq.current) return // a newer request already won
+      setForecastLoading(false)
+      // A failed refresh keeps the numbers already on screen rather than
+      // blanking the playbook; only a ZIP with no data at all clears it.
+      if (res) {
+        setForecast(res.days)
+        setForecastAt(res.fetchedAt)
+      } else if (!force) {
+        setForecast(null)
+        setForecastAt(null)
+      }
+    },
+    [profile.zip],
+  )
+
+  const refreshForecast = useCallback(() => void loadForecast(true), [loadForecast])
+
+  // One effect owns the load, so a sign-in cannot fetch twice over an empty
+  // cache. It forces a fresh pull the first time a signed-in user's ZIP is
+  // known, which is sign-in: the ZIP arrives with the account profile a moment
+  // after the session does, so keying on the pair rather than on the auth
+  // transition means the refresh has something to fetch by the time it runs.
+  const signedInUser = session?.user?.id ?? null
   useEffect(() => {
-    const zip = profile.zip
-    if (!zip || !/^\d{5}$/.test(zip)) {
-      setForecast(null)
-      return
+    if (!signedInUser) forcedFor.current = null // so signing back in forces again
+    const key = signedInUser && profile.zip ? `${signedInUser}:${profile.zip}` : null
+    const force = key !== null && forcedFor.current !== key
+    if (key) forcedFor.current = key
+    void loadForecast(force)
+  }, [signedInUser, profile.zip, loadForecast])
+
+  useEffect(() => {
+    const id = setInterval(() => void loadForecast(true), REFRESH_MS)
+    // A background tab's timers are throttled and a sleeping laptop's do not
+    // fire at all, so returning to the tab is the trigger that actually works.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (forecastAt !== null && Date.now() - forecastAt < REFRESH_MS) return
+      void loadForecast(true)
     }
-    let cancelled = false
-    getForecast(zip).then((f) => {
-      if (!cancelled) setForecast(f)
-    })
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
-      cancelled = true
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [profile.zip])
+  }, [loadForecast, forecastAt])
 
   const demoUploadsMemo = useMemo(() => {
     const { electric, gas } = sampleUploads()
@@ -294,7 +360,11 @@ export function useHearthStore(): HearthStore {
 
   const saveProfilePatch = useCallback(
     (patch: Partial<Profile>) => {
-      setProfile((prev) => ({ ...prev, ...patch }))
+      setProfile((prev) => {
+        const next = { ...prev, ...patch }
+        if (!session) writeJson(GUEST_PROFILE_KEY, next)
+        return next
+      })
       if (session) void api.saveProfile(session.user.id, patch)
     },
     [session],
@@ -395,9 +465,11 @@ export function useHearthStore(): HearthStore {
     setGuestUploads({})
     setGuestAnswers({})
     setGuestEvMeta({})
+    setProfile(EMPTY_PROFILE)
     persistGuestUploads({})
     writeJson(GUEST_ANSWERS_KEY, {})
     writeJson(GUEST_EVMETA_KEY, {})
+    writeJson(GUEST_PROFILE_KEY, EMPTY_PROFILE)
   }, [])
 
   const signOutUser = useCallback(async () => {
@@ -409,16 +481,7 @@ export function useHearthStore(): HearthStore {
     } catch {
       /* private mode */
     }
-    setProfile({
-      display_name: null,
-      zip: null,
-      home_type: null,
-      ac_type: null,
-      occupancy: null,
-      has_ev: false,
-      has_pool: false,
-      has_electric_dryer: false,
-    })
+    setProfile(readJson<Profile>(GUEST_PROFILE_KEY, EMPTY_PROFILE))
     setMode('demo')
   }, [setMode])
 
@@ -434,6 +497,9 @@ export function useHearthStore(): HearthStore {
     answers,
     evMeta,
     forecast,
+    forecastAt,
+    forecastLoading,
+    refreshForecast,
     signUp: api.signUp,
     signIn: api.signIn,
     signOutUser,
