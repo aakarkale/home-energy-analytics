@@ -1,9 +1,12 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { Hearth } from '../types'
 import { fmtTemp, fmtTempDelta } from '../lib/format'
 import { TempToggle } from '../components/chart'
 import { SCHEDULE_GAP, TodayCurve, scheduleColumns, visibleBlocks } from '../components/TodayCurve'
 import { useMediaQuery } from '../hooks'
+
+/** Whether the hour-by-hour panel is open. A per-browser convenience. */
+const HOURLY_KEY = 'hearth-playbook-hourly'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -17,6 +20,21 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
   // label: a 3-hour pre-cool is an eighth of the day, and below this it would
   // hyphenate. Narrower than that the row falls back to equal columns.
   const proportional = useMediaQuery('(min-width: 1180px)')
+  const [hourly, setHourlyState] = useState(() => {
+    try {
+      return localStorage.getItem(HOURLY_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const setHourly = (v: boolean) => {
+    setHourlyState(v)
+    try {
+      localStorage.setItem(HOURLY_KEY, v ? '1' : '0')
+    } catch {
+      /* private mode */
+    }
+  }
   const hasElectric = !!hearth.bundles.electric
   const t = (f: number | null) => (f === null ? '—' : fmtTemp(f, tempUnit))
   const unitToggle = <TempToggle unit={tempUnit} onChange={hearth.setTempUnit} />
@@ -88,24 +106,60 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
               </div>
             ))}
           </div>
+
+          {/* The chart is the same schedule at a finer grain, so it belongs to
+              this card rather than a separate one. Folded away by default; the
+              choice is remembered so a reader who wants it keeps it. */}
+          {plan.hourly && (
+            <div style={{ borderTop: '1px solid var(--bg-6)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => setHourly(!hourly)}
+                aria-expanded={hourly}
+                className="h-interactive hov-fg1"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  alignSelf: 'flex-start',
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontFamily: 'var(--font-dm-sans)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--fg-2)',
+                }}
+              >
+                <i
+                  className="ph ph-caret-right"
+                  style={{
+                    fontSize: 14,
+                    transition: 'transform 150ms ease',
+                    transform: hourly ? 'rotate(90deg)' : 'none',
+                  }}
+                />
+                Hour by hour
+                <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--fg-4)' }}>
+                  {hourly
+                    ? hearth.forecastIsSample
+                      ? 'sample weather · demo mode'
+                      : "today's weather against your setpoint"
+                    : "see today's weather against your setpoint"}
+                </span>
+              </button>
+              {hourly && (
+                <div className="h-fade-up">
+                  <TodayCurve plan={plan} unit={tempUnit} nowHour={new Date().getHours()} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-wind" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
           No AC configured, so skip the thermostat schedule. Night flush and the habits below still apply.
-        </div>
-      )}
-
-      {plan.hourly && (
-        <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Today, hour by hour</div>
-            <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>
-              {hearth.forecastIsSample ? 'sample weather · demo mode' : 'the same blocks as above, on real elapsed time'}
-            </div>
-            <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
-          </div>
-          <TodayCurve plan={plan} unit={tempUnit} nowHour={new Date().getHours()} />
         </div>
       )}
 
