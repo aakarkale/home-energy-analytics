@@ -89,6 +89,8 @@ export interface HearthStore {
   answers: Record<string, string[]>
   evMeta: Record<string, EvMetaEntry>
   forecast: ForecastDay[] | null
+  /** Outdoor °F per hour from midnight local today. */
+  forecastHours: number[] | null
   /** When the forecast was pulled from the API. Null when there is none. */
   forecastAt: number | null
   forecastLoading: boolean
@@ -150,6 +152,7 @@ export function useHearthStore(): HearthStore {
     readJson(GUEST_EVMETA_KEY, {}),
   )
   const [forecast, setForecast] = useState<ForecastDay[] | null>(null)
+  const [forecastHours, setForecastHours] = useState<number[] | null>(null)
   const [forecastAt, setForecastAt] = useState<number | null>(null)
   const [forecastLoading, setForecastLoading] = useState(false)
   /** Guards against a slow earlier request landing after a newer one. */
@@ -239,6 +242,7 @@ export function useHearthStore(): HearthStore {
       const zip = profile.zip
       if (!zip || !/^\d{5}$/.test(zip)) {
         setForecast(null)
+        setForecastHours(null)
         setForecastAt(null)
         return
       }
@@ -251,9 +255,11 @@ export function useHearthStore(): HearthStore {
       // blanking the playbook; only a ZIP with no data at all clears it.
       if (res) {
         setForecast(res.days)
+        setForecastHours(res.hoursF.length ? res.hoursF : null)
         setForecastAt(res.fetchedAt)
       } else if (!force) {
         setForecast(null)
+        setForecastHours(null)
         setForecastAt(null)
       }
     },
@@ -497,6 +503,7 @@ export function useHearthStore(): HearthStore {
     answers,
     evMeta,
     forecast,
+    forecastHours,
     forecastAt,
     forecastLoading,
     refreshForecast,

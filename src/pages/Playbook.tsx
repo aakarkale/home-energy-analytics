@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import type { Hearth } from '../types'
 import { fmtTemp, fmtTempDelta } from '../lib/format'
 import { TempToggle } from '../components/chart'
+import { TodayCurve } from '../components/TodayCurve'
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -76,6 +77,19 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-wind" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
           No AC configured, so skip the thermostat schedule. Night flush and the habits below still apply.
+        </div>
+      )}
+
+      {plan.hourly && (
+        <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Today, hour by hour</div>
+            <div style={{ fontSize: 11.5, color: 'var(--fg-4)' }}>
+              {hearth.forecastIsSample ? 'sample weather · demo mode' : 'the same blocks as above, on real elapsed time'}
+            </div>
+            <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
+          </div>
+          <TodayCurve plan={plan} unit={tempUnit} nowHour={new Date().getHours()} />
         </div>
       )}
 

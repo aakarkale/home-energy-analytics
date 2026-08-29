@@ -12,7 +12,7 @@ import {
   savingsTotalPerYr,
 } from './lib/content'
 import { buildAcPlan } from './lib/acplan'
-import { SAMPLE_FORECAST } from './lib/sample'
+import { SAMPLE_FORECAST, SAMPLE_HOURS } from './lib/sample'
 import { fmtMoney, fmtMonthDay, fmtNum } from './lib/format'
 import {
   locate,
@@ -202,6 +202,7 @@ export default function App() {
   }, [bundles, fuel])
 
   const forecast = store.mode === 'demo' ? SAMPLE_FORECAST : store.forecast
+  const forecastHours = store.mode === 'demo' ? SAMPLE_HOURS : store.forecastHours
   const plan = useMemo(
     () =>
       buildAcPlan(
@@ -211,8 +212,9 @@ export default function App() {
         bundles.electric
           ? precoolEstimate(bundles.electric.analysis, store.profile, store.answers, store.evMeta)
           : null,
+        forecastHours,
       ),
-    [bundles.electric, store.profile, forecast, store.answers, store.evMeta],
+    [bundles.electric, store.profile, forecast, forecastHours, store.answers, store.evMeta],
   )
 
   const bundle = bundles[fuel] ?? null

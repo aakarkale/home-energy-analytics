@@ -27,6 +27,10 @@ export interface PlanForecastDay {
 export interface ScheduleBlock {
   period: string
   time: string
+  /** Clock hours this block covers, on a day that runs 6am to 6am so the four
+   *  blocks read left to right in schedule order. `to` may exceed 24. */
+  fromHour: number
+  toHour: number
   /** Setpoint in °F; the reader's unit is applied at render. null = AC off. */
   tempF: number | null
   why: string
@@ -61,6 +65,10 @@ export interface AcPlan {
   peak: { label: string; tempF: number | null }
   todayBand: Band | null
   todayHiF: number | null
+  /** Today's outdoor temperature hour by hour across the same 6am-to-6am window
+   *  as the schedule, each hour tagged with the block it falls in. Null when no
+   *  hourly forecast is available. */
+  hourly: { hour: number; outF: number; setF: number | null; block: number }[] | null
 }
 
 export const BAND_COLOR: Record<Band, string> = {
@@ -89,6 +97,8 @@ export function buildAcPlan(
   profile: Profile | null,
   forecast: ForecastDay[] | null,
   precoolSummerEst: number | null,
+  /** Outdoor °F per hour from midnight local today, as `getForecast` returns. */
+  hoursF?: number[] | null,
 ): AcPlan {
   const hasAC = profile?.ac_type !== 'No AC'
   const startHour = elec?.tou?.startHour ?? 16
@@ -119,10 +129,20 @@ export function buildAcPlan(
   const todayBand: Band = today?.band ?? 'Standard'
   const temps = BAND_TEMPS[todayBand === 'Off' ? 'Standard' : todayBand]
 
+  // The chart day runs 6am to 6am, so the blocks read left to right in the same
+  // order as the cards. Boundaries are clamped to stay in order even if a peak
+  // window sits somewhere unusual.
+  const WAKE = 6
+  const b1 = Math.min(Math.max(preHour, WAKE), WAKE + 24)
+  const b2 = Math.min(Math.max(startHour, b1), WAKE + 24)
+  const b3 = Math.min(Math.max(endHour + 1, b2), WAKE + 24)
+
   const schedule: ScheduleBlock[] = [
     {
       period: 'Wake',
       time: hourLabel(6),
+      fromHour: WAKE,
+      toHour: b1,
       tempF: 76,
       why: "Coast on last night's cool air.",
       bg: 'var(--bg-3)',
@@ -133,6 +153,8 @@ export function buildAcPlan(
     {
       period: 'Pre-cool',
       time: hourLabel(preHour),
+      fromHour: b1,
+      toHour: b2,
       tempF: temps.pre,
       why: 'Chill the house while power is cheap.',
       bg: 'rgba(41,149,255,0.09)',
@@ -143,6 +165,8 @@ export function buildAcPlan(
     {
       period: 'Peak',
       time: winLabel,
+      fromHour: b2,
+      toHour: b3,
       tempF: temps.peak,
       why: 'Keep the lid shut. The AC mostly rests.',
       bg: 'rgba(255,221,85,0.08)',
@@ -153,6 +177,8 @@ export function buildAcPlan(
     {
       period: 'Evening',
       time: peakEndLabel,
+      fromHour: b3,
+      toHour: WAKE + 24,
       tempF: 74,
       why: 'Cheap power returns.',
       bg: 'var(--bg-3)',
@@ -178,8 +204,25 @@ export function buildAcPlan(
     }
   }
 
+  // Today's outdoor curve across the same window as the schedule, so the chart
+  // sits directly under the cards it explains. Each hour carries the setpoint
+  // in force at that hour, which is what makes the two readable together.
+  let hourly: AcPlan['hourly'] = null
+  if (hoursF && hoursF.length >= WAKE + 24) {
+    const rows: NonNullable<AcPlan['hourly']> = []
+    for (let h = WAKE; h < WAKE + 24; h++) {
+      const outF = hoursF[h]
+      if (!Number.isFinite(outF)) continue
+      const block = schedule.findIndex((b) => h >= b.fromHour && h < b.toHour)
+      const at = block >= 0 ? block : schedule.length - 1
+      rows.push({ hour: h % 24, outF, setF: schedule[at]!.tempF, block: at })
+    }
+    if (rows.length) hourly = rows
+  }
+
   return {
     hasAC,
+    hourly,
     windowLabel: winLabel,
     peakEndLabel,
     schedule,

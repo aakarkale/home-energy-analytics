@@ -28,7 +28,8 @@ html { color-scheme: dark; }
 a { color: rgb(255,221,85); text-decoration: none; }
 a:hover { color: rgb(255,235,150); }
 ::selection { background: rgba(255,221,85,.25); }
-select:focus-visible, input:focus-visible, button:focus-visible {
+select:focus-visible, input:focus-visible, button:focus-visible,
+[role="application"]:focus-visible {
   outline: 2px solid rgba(255,221,85,.6);
   outline-offset: 2px;
 }

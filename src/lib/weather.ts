@@ -20,6 +20,9 @@ export const REFRESH_MS = 12 * 60 * 60 * 1000
 
 export interface ForecastResult {
   days: ForecastDay[]
+  /** Outdoor °F for every hour, index 0 = midnight local today. Lets the
+   *  playbook draw today's curve under the thermostat schedule. */
+  hoursF: number[]
   /** When these numbers came off the API, not when they were read from cache. */
   fetchedAt: number
 }
@@ -34,8 +37,10 @@ export async function getForecast(
     try {
       const raw = localStorage.getItem(cacheKey)
       if (raw) {
-        const { ts, days } = JSON.parse(raw)
-        if (Date.now() - ts < CACHE_MS && Array.isArray(days)) return { days, fetchedAt: ts }
+        const { ts, days, hoursF } = JSON.parse(raw)
+        if (Date.now() - ts < CACHE_MS && Array.isArray(days)) {
+          return { days, hoursF: Array.isArray(hoursF) ? hoursF : [], fetchedAt: ts }
+        }
       }
     } catch {
       /* ignore */
@@ -54,6 +59,7 @@ export async function getForecast(
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&daily=temperature_2m_max,temperature_2m_min,weathercode` +
+      `&hourly=temperature_2m` +
       `&temperature_unit=fahrenheit&timezone=auto&forecast_days=7`
     const wxRes = await fetch(url)
     if (!wxRes.ok) return null
@@ -63,6 +69,10 @@ export async function getForecast(
     const los: number[] = wx?.daily?.temperature_2m_min ?? []
     const codes: number[] = wx?.daily?.weathercode ?? []
     if (!dates.length) return null
+    // Hourly comes back as one flat series from midnight of the first day.
+    const hoursF: number[] = (wx?.hourly?.temperature_2m ?? [])
+      .slice(0, 48)
+      .map((t: number) => Math.round(t))
 
     // A malformed date from upstream would otherwise render as "INVALID DATE"
     // in the forecast strip, so drop those rows rather than show them.
@@ -82,11 +92,11 @@ export async function getForecast(
     if (!days.length) return null
     const fetchedAt = Date.now()
     try {
-      localStorage.setItem(cacheKey, JSON.stringify({ ts: fetchedAt, days }))
+      localStorage.setItem(cacheKey, JSON.stringify({ ts: fetchedAt, days, hoursF }))
     } catch {
       /* ignore */
     }
-    return { days, fetchedAt }
+    return { days, hoursF, fetchedAt }
   } catch {
     return null
   }
