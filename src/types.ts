@@ -79,6 +79,10 @@ export interface Hearth {
   bundle: FuelBundle | null
   plan: AcPlan
   forecastIsSample: boolean
+  /** When the live forecast was pulled. Null in demo mode or with no ZIP. */
+  forecastAt: number | null
+  forecastLoading: boolean
+  refreshForecast: () => void
   zipMissing: boolean
 
   answers: Record<string, string[]>
