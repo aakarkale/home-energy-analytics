@@ -266,10 +266,11 @@ export function SplitBar({ segments, height = 14 }: { segments: SplitSeg[]; heig
  * Fahrenheit / Celsius switch. Placed on every card that shows a temperature so
  * the unit is changeable wherever it is read, not hidden in a settings screen.
  *
- * One button rather than two: it shows the unit the numbers beside it are in,
- * so it doubles as a legend, and clicking swaps to the other. The swap glyph is
- * what stops it reading as a static label, and the accessible name says both
- * the current state and what a press will do.
+ * Both units show, with the live one lit, so the pill states which unit the
+ * numbers beside it are in and what the alternative is. It is still a single
+ * control: one button, so a click lands anywhere on the pill (including the
+ * unlit half and the padding between) and flips the unit. The accessible name
+ * says both the current state and what a press will do.
  */
 export function TempToggle({
   unit,
@@ -284,33 +285,43 @@ export function TempToggle({
 }) {
   const other = unit === 'F' ? 'C' : 'F'
   const md = size === 'md'
+  // Both units stay on screen so the pill reads as a state, not a mystery
+  // button. The whole pill is one control, though: a click anywhere on it
+  // flips the unit, so there is no half to aim at.
+  const seg = (u: 'F' | 'C'): CSSProperties => ({
+    padding: md ? '6px 15px' : '3px 9px',
+    borderRadius: 100,
+    fontSize: md ? 12 : 11,
+    fontWeight: md ? 600 : 700,
+    background: u === unit ? 'var(--bg-5)' : 'transparent',
+    color: u === unit ? 'var(--fg-0)' : 'var(--fg-4)',
+  })
   return (
     <button
       onClick={() => onChange(other)}
-      title={`Showing °${unit}. Switch to °${other}.`}
+      title={`Showing °${unit}. Click to switch to °${other}.`}
       aria-label={`Temperature unit: °${unit}. Switch to °${other}.`}
-      className="h-interactive hov-bg4 press97"
+      className="h-interactive hov-bd press97"
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: md ? 7 : 5,
+        gap: 2,
         flex: 'none',
-        padding: md ? '8px 15px' : '4px 10px',
+        padding: md ? 3 : 2,
         borderRadius: 100,
         border: '1px solid var(--bg-6)',
         background: 'var(--bg-3)',
         cursor: 'pointer',
         fontFamily: 'var(--font-dm-sans)',
-        fontSize: md ? 12 : 11,
-        fontWeight: 700,
-        color: 'var(--fg-0)',
+        lineHeight: 1.35,
       }}
     >
-      °{unit}
-      <i
-        className="ph ph-arrows-left-right"
-        style={{ fontSize: md ? 12 : 11, color: 'var(--fg-4)' }}
-      />
+      <span className="h-interactive" style={seg('F')}>
+        °F
+      </span>
+      <span className="h-interactive" style={seg('C')}>
+        °C
+      </span>
     </button>
   )
 }
