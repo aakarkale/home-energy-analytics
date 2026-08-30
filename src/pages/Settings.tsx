@@ -7,6 +7,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import type { Fuel, Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { FUEL_ICON } from '../model'
+import { TempToggle } from '../components/chart'
 import { fmtDateNum, fmtMoney, fmtNum } from '../lib/format'
 import {
   factsFromProfile,
@@ -175,14 +176,7 @@ export function Settings({ hearth, store }: { hearth: Hearth; store: HearthStore
       <div style={card}>
         <div style={h2}>Units &amp; formats</div>
         <Row title="Temperature" note="Applies to the AC Playbook and every forecast tile.">
-          <Segmented
-            value={hearth.tempUnit}
-            options={[
-              { id: 'F', label: '°F' },
-              { id: 'C', label: '°C' },
-            ]}
-            onChange={hearth.setTempUnit}
-          />
+          <TempToggle unit={hearth.tempUnit} onChange={hearth.setTempUnit} size="md" />
         </Row>
         <Row
           title="Dates"

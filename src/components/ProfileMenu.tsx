@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { PAGE_PATHS } from '../lib/routes'
+import { TempToggle } from './chart'
 
 const itemStyle: CSSProperties = {
   display: 'flex',
@@ -179,27 +180,8 @@ export function ProfileMenu({
           <div style={{ ...itemStyle, cursor: 'default' }}>
             <i className="ph ph-thermometer-simple" style={{ fontSize: 16, flex: 'none' }} />
             Temperature
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 2, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 2 }}>
-              {(['F', 'C'] as const).map((u) => (
-                <button
-                  key={u}
-                  onClick={() => hearth.setTempUnit(u)}
-                  className="h-interactive"
-                  style={{
-                    border: 'none',
-                    borderRadius: 100,
-                    padding: '2px 9px',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-dm-sans)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    background: hearth.tempUnit === u ? 'var(--bg-5)' : 'transparent',
-                    color: hearth.tempUnit === u ? 'var(--fg-0)' : 'var(--fg-4)',
-                  }}
-                >
-                  °{u}
-                </button>
-              ))}
+            <span style={{ marginLeft: 'auto' }}>
+              <TempToggle unit={hearth.tempUnit} onChange={hearth.setTempUnit} />
             </span>
           </div>
 

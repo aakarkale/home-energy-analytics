@@ -274,11 +274,16 @@ export function SplitBar({ segments, height = 14 }: { segments: SplitSeg[]; heig
 export function TempToggle({
   unit,
   onChange,
+  /** 'md' matches the settings-row controls it sits beside; 'sm' is the compact
+   *  form for card headers and menu rows. */
+  size = 'sm',
 }: {
   unit: 'F' | 'C'
   onChange: (u: 'F' | 'C') => void
+  size?: 'sm' | 'md'
 }) {
   const other = unit === 'F' ? 'C' : 'F'
+  const md = size === 'md'
   return (
     <button
       onClick={() => onChange(other)}
@@ -288,21 +293,24 @@ export function TempToggle({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 5,
+        gap: md ? 7 : 5,
         flex: 'none',
-        padding: '4px 10px',
+        padding: md ? '8px 15px' : '4px 10px',
         borderRadius: 100,
         border: '1px solid var(--bg-6)',
         background: 'var(--bg-3)',
         cursor: 'pointer',
         fontFamily: 'var(--font-dm-sans)',
-        fontSize: 11,
+        fontSize: md ? 12 : 11,
         fontWeight: 700,
         color: 'var(--fg-0)',
       }}
     >
       °{unit}
-      <i className="ph ph-arrows-left-right" style={{ fontSize: 11, color: 'var(--fg-4)' }} />
+      <i
+        className="ph ph-arrows-left-right"
+        style={{ fontSize: md ? 12 : 11, color: 'var(--fg-4)' }}
+      />
     </button>
   )
 }
