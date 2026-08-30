@@ -265,6 +265,11 @@ export function SplitBar({ segments, height = 14 }: { segments: SplitSeg[]; heig
 /**
  * Fahrenheit / Celsius switch. Placed on every card that shows a temperature so
  * the unit is changeable wherever it is read, not hidden in a settings screen.
+ *
+ * One button rather than two: it shows the unit the numbers beside it are in,
+ * so it doubles as a legend, and clicking swaps to the other. The swap glyph is
+ * what stops it reading as a static label, and the accessible name says both
+ * the current state and what a press will do.
  */
 export function TempToggle({
   unit,
@@ -273,33 +278,31 @@ export function TempToggle({
   unit: 'F' | 'C'
   onChange: (u: 'F' | 'C') => void
 }) {
+  const other = unit === 'F' ? 'C' : 'F'
   return (
-    <div
-      role="group"
-      aria-label="Temperature unit"
-      style={{ display: 'flex', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 2, gap: 2, flex: 'none' }}
+    <button
+      onClick={() => onChange(other)}
+      title={`Showing °${unit}. Switch to °${other}.`}
+      aria-label={`Temperature unit: °${unit}. Switch to °${other}.`}
+      className="h-interactive hov-bg4 press97"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        flex: 'none',
+        padding: '4px 10px',
+        borderRadius: 100,
+        border: '1px solid var(--bg-6)',
+        background: 'var(--bg-3)',
+        cursor: 'pointer',
+        fontFamily: 'var(--font-dm-sans)',
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'var(--fg-0)',
+      }}
     >
-      {(['F', 'C'] as const).map((u) => (
-        <button
-          key={u}
-          onClick={() => onChange(u)}
-          aria-pressed={unit === u}
-          className="h-interactive press97"
-          style={{
-            padding: '3px 10px',
-            borderRadius: 100,
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-dm-sans)',
-            fontSize: 11,
-            fontWeight: 700,
-            background: unit === u ? 'var(--bg-5)' : 'transparent',
-            color: unit === u ? 'var(--fg-0)' : 'var(--fg-4)',
-          }}
-        >
-          °{u}
-        </button>
-      ))}
-    </div>
+      °{unit}
+      <i className="ph ph-arrows-left-right" style={{ fontSize: 11, color: 'var(--fg-4)' }} />
+    </button>
   )
 }
