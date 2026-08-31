@@ -51,8 +51,84 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
     return hrs < 24 ? `updated ${hrs}h ago` : `updated ${Math.round(hrs / 24)}d ago`
   })()
 
+  // One control for every number on this page that came off the weather API:
+  // the setpoints, the hour-by-hour curve, the 7-day strip, the night flush
+  // and the bands all come out of a single fetch, so it sits above them all
+  // rather than inside the card it happened to be added to first.
+  const weatherBar = !hearth.forecastIsSample && !hearth.zipMissing && (
+    <div
+      style={{
+        ...card,
+        padding: '10px 12px 10px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'wrap',
+      }}
+    >
+      <i className="ph ph-cloud-sun" style={{ fontSize: 17, color: 'var(--accent-blue)' }} />
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
+        Weather{hearth.forecastZip ? ` for ${hearth.forecastZip}` : ''}
+      </span>
+      <span style={{ fontSize: 12, color: 'var(--fg-4)', lineHeight: 1.4 }}>
+        Sets the schedule, the hour-by-hour curve and the 7-day outlook below.
+      </span>
+      <span
+        style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11.5,
+            color: hearth.forecastFailed ? 'var(--accent-red)' : 'var(--fg-4)',
+          }}
+        >
+          {hearth.forecastFailed && !hearth.forecastLoading
+            ? "Couldn't reach the weather service. Showing the last numbers."
+            : freshness}
+        </span>
+        <button
+          onClick={hearth.refreshForecast}
+          disabled={hearth.forecastLoading}
+          title="Pull today's hourly weather and the 7-day forecast again"
+          aria-label="Refresh weather data"
+          className="h-interactive hov-bg3 press98"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flex: 'none',
+            border: '1px solid var(--bg-6)',
+            background: 'transparent',
+            borderRadius: 100,
+            padding: '5px 11px',
+            cursor: hearth.forecastLoading ? 'default' : 'pointer',
+            fontFamily: 'var(--font-dm-sans)',
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: 'var(--fg-3)',
+            opacity: hearth.forecastLoading ? 0.6 : 1,
+          }}
+        >
+          <i
+            className={`ph ph-arrows-clockwise${hearth.forecastLoading ? ' h-spin' : ''}`}
+            style={{ fontSize: 13 }}
+          />
+          {hearth.forecastLoading ? 'Refreshing' : 'Refresh'}
+        </button>
+      </span>
+    </div>
+  )
+
   return (
     <>
+      {weatherBar}
+
       {!hasElectric && hearth.mode === 'live' && (
         <div style={{ ...card, padding: 20, display: 'flex', gap: 12, alignItems: 'center', color: 'var(--fg-3)', fontSize: 13 }}>
           <i className="ph ph-info" style={{ fontSize: 18, color: 'var(--accent-blue)' }} />
@@ -168,39 +244,6 @@ export function Playbook({ hearth }: { hearth: Hearth }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Next 7 days</div>
           {plan.forecast && hearth.forecastIsSample && (
             <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>sample forecast · demo mode</span>
-          )}
-          {!hearth.forecastIsSample && !hearth.zipMissing && (
-            <>
-              <span style={{ fontSize: 11, color: 'var(--fg-4)' }}>{freshness}</span>
-              <button
-                onClick={hearth.refreshForecast}
-                disabled={hearth.forecastLoading}
-                title="Pull the latest forecast now"
-                aria-label="Refresh forecast"
-                className="h-interactive hov-bg3 press98"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  border: '1px solid var(--bg-6)',
-                  background: 'transparent',
-                  borderRadius: 100,
-                  padding: '5px 11px',
-                  cursor: hearth.forecastLoading ? 'default' : 'pointer',
-                  fontFamily: 'var(--font-dm-sans)',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  color: 'var(--fg-3)',
-                  opacity: hearth.forecastLoading ? 0.6 : 1,
-                }}
-              >
-                <i
-                  className={`ph ph-arrows-clockwise${hearth.forecastLoading ? ' h-spin' : ''}`}
-                  style={{ fontSize: 13 }}
-                />
-                {hearth.forecastLoading ? 'Refreshing' : 'Refresh'}
-              </button>
-            </>
           )}
           <div style={{ marginLeft: 'auto' }}>{unitToggle}</div>
         </div>

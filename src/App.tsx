@@ -295,8 +295,10 @@ export default function App() {
     forecastIsSample: store.mode === 'demo',
     forecastAt: store.mode === 'demo' ? null : store.forecastAt,
     forecastLoading: store.mode === 'demo' ? false : store.forecastLoading,
+    forecastFailed: store.mode === 'demo' ? false : store.forecastFailed,
     refreshForecast: store.refreshForecast,
     zipMissing: store.mode === 'live' && !store.profile.zip,
+    forecastZip: store.mode === 'demo' ? null : store.profile.zip,
 
     answers: store.answers,
     otherDraft,

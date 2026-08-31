@@ -94,6 +94,10 @@ export interface HearthStore {
   /** When the forecast was pulled from the API. Null when there is none. */
   forecastAt: number | null
   forecastLoading: boolean
+  /** A refresh was asked for and did not come back with numbers. The old
+   *  forecast stays on screen, so without this the UI would claim to be
+   *  showing weather it failed to fetch. */
+  forecastFailed: boolean
   refreshForecast: () => void
 
   signUp: (
@@ -155,6 +159,7 @@ export function useHearthStore(): HearthStore {
   const [forecastHours, setForecastHours] = useState<number[] | null>(null)
   const [forecastAt, setForecastAt] = useState<number | null>(null)
   const [forecastLoading, setForecastLoading] = useState(false)
+  const [forecastFailed, setForecastFailed] = useState(false)
   /** Guards against a slow earlier request landing after a newer one. */
   const forecastReq = useRef(0)
   /** The `user:zip` pair whose sign-in refresh has already been spent. */
@@ -241,6 +246,11 @@ export function useHearthStore(): HearthStore {
     async (force: boolean) => {
       const zip = profile.zip
       if (!zip || !/^\d{5}$/.test(zip)) {
+        // Bump the counter so a request already in flight for the old ZIP
+        // cannot land on top of this, and clear the spinner it turned on.
+        forecastReq.current++
+        setForecastLoading(false)
+        setForecastFailed(false)
         setForecast(null)
         setForecastHours(null)
         setForecastAt(null)
@@ -254,10 +264,15 @@ export function useHearthStore(): HearthStore {
       // A failed refresh keeps the numbers already on screen rather than
       // blanking the playbook; only a ZIP with no data at all clears it.
       if (res) {
+        setForecastFailed(false)
         setForecast(res.days)
         setForecastHours(res.hoursF.length ? res.hoursF : null)
         setForecastAt(res.fetchedAt)
-      } else if (!force) {
+      } else if (force) {
+        // Say so rather than leaving stale numbers looking freshly pulled.
+        setForecastFailed(true)
+      } else {
+        setForecastFailed(false)
         setForecast(null)
         setForecastHours(null)
         setForecastAt(null)
@@ -506,6 +521,7 @@ export function useHearthStore(): HearthStore {
     forecastHours,
     forecastAt,
     forecastLoading,
+    forecastFailed,
     refreshForecast,
     signUp: api.signUp,
     signIn: api.signIn,
