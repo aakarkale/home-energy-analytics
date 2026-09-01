@@ -18,6 +18,25 @@ export const PAGE_TITLES: Record<Page, string> = {
   account: 'Account',
 }
 
+/** Which screens actually read the selected fuel. The switch is only shown on
+ *  these, because on the others it would change nothing you can see:
+ *
+ *  - Rates and AC Playbook read `bundles.electric` directly. Gas has no TOU
+ *    window and no thermostat, so both are electricity-only by construction.
+ *  - Settings and Account are not per-fuel views at all.
+ *
+ *  An allow-list rather than a deny-list, so a screen added later has to opt in
+ *  and cannot inherit an inert control by default. */
+export const PER_FUEL_PAGES: Record<Page, boolean> = {
+  overview: true,
+  energy: true,
+  activity: true,
+  rates: false,
+  playbook: false,
+  settings: false,
+  account: false,
+}
+
 export const FUEL_TABS: { id: Fuel; label: string; icon: string; activeFg: string }[] = [
   { id: 'electric', label: 'Electricity', icon: 'ph-fill ph-lightning', activeFg: 'rgb(255,221,85)' },
   { id: 'gas', label: 'Gas', icon: 'ph-fill ph-flame', activeFg: 'rgb(41,149,255)' },

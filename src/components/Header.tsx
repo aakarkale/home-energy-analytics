@@ -1,7 +1,7 @@
 import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { ProfileMenu } from './ProfileMenu'
-import { FUEL_TABS, PAGE_TITLES } from '../model'
+import { FUEL_TABS, PAGE_TITLES, PER_FUEL_PAGES } from '../model'
 
 function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
   return (
@@ -58,9 +58,9 @@ export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }
   const themeLabel = hearth.light ? 'Dark mode' : 'Light mode'
   const title = hearth.page === 'overview' ? hearth.greeting : PAGE_TITLES[hearth.page]
   const uploadStep = hearth.isAuthed || hearth.hasMyData ? 2 : 0
-  // Settings and Account are not per-fuel views, so the fuel switch would only
-  // change something you cannot see from here.
-  const showFuel = hearth.page !== 'settings' && hearth.page !== 'account'
+  // Only the screens that actually read the selected fuel get the switch; see
+  // PER_FUEL_PAGES. Elsewhere it would be a control that changes nothing.
+  const showFuel = PER_FUEL_PAGES[hearth.page]
 
   return (
     <div
