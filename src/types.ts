@@ -82,8 +82,11 @@ export interface Hearth {
   /** When the live forecast was pulled. Null in demo mode or with no ZIP. */
   forecastAt: number | null
   forecastLoading: boolean
+  forecastFailed: boolean
   refreshForecast: () => void
   zipMissing: boolean
+  /** The ZIP the live forecast is for. Null in demo mode or with no ZIP set. */
+  forecastZip: string | null
 
   answers: Record<string, string[]>
   otherDraft: Record<string, string>
