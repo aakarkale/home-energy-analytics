@@ -1,6 +1,7 @@
 import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { ProfileMenu } from './ProfileMenu'
+import { ExitDemo } from './ExitDemo'
 import { FUEL_TABS, PAGE_TITLES, PER_FUEL_PAGES } from '../model'
 
 function FuelTabs({ hearth, mobile }: { hearth: Hearth; mobile: boolean }) {
@@ -177,26 +178,30 @@ export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }
 
       {isMobile && (
         <>
-          <ProfileMenu hearth={hearth} store={store} align="down">
-            <span
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 100,
-                border: '1px solid var(--glass-12)',
-                background: 'var(--glass-11)',
-                color: 'var(--fg-1)',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 'none',
-              }}
-            >
-              {hearth.userLabel.initials}
-            </span>
-          </ProfileMenu>
+          {hearth.demoVisitor ? (
+            <ExitDemo hearth={hearth} variant="pill" />
+          ) : (
+            <ProfileMenu hearth={hearth} store={store} align="down">
+              <span
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 100,
+                  border: '1px solid var(--glass-12)',
+                  background: 'var(--glass-11)',
+                  color: 'var(--fg-1)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: 'none',
+                }}
+              >
+                {hearth.userLabel.initials}
+              </span>
+            </ProfileMenu>
+          )}
           <button
             onClick={() => hearth.openOb(uploadStep)}
             style={{

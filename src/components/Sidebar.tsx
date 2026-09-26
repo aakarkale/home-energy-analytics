@@ -2,6 +2,7 @@ import type { Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { PAGE_PATHS } from '../lib/routes'
 import { ProfileMenu } from './ProfileMenu'
+import { ExitDemo } from './ExitDemo'
 import { NAV_PAGES } from '../model'
 
 export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore }) {
@@ -177,51 +178,55 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
       )}
 
       <div style={{ borderTop: '1px solid var(--bg-6)', marginTop: 10, paddingTop: 8 }}>
-        <ProfileMenu hearth={hearth} store={store} side="left">
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            background: 'var(--bg-5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--fg-1)',
-            flex: 'none',
-          }}
-        >
-          {hearth.userLabel.initials}
-        </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        {hearth.demoVisitor ? (
+          <ExitDemo hearth={hearth} variant="row" />
+        ) : (
+          <ProfileMenu hearth={hearth} store={store} side="left">
           <div
             style={{
-              fontSize: 13,
-              fontWeight: 600,
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: 'var(--bg-5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              fontWeight: 700,
               color: 'var(--fg-1)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              flex: 'none',
             }}
           >
-            {hearth.userLabel.name}
+            {hearth.userLabel.initials}
           </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: 'var(--fg-4)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {hearth.userLabel.sub}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--fg-1)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {hearth.userLabel.name}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--fg-4)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {hearth.userLabel.sub}
+            </div>
           </div>
-        </div>
-        <i className="ph ph-caret-up-down" style={{ fontSize: 14, color: 'var(--fg-4)', flex: 'none' }} />
-        </ProfileMenu>
+          <i className="ph ph-caret-up-down" style={{ fontSize: 14, color: 'var(--fg-4)', flex: 'none' }} />
+          </ProfileMenu>
+        )}
       </div>
     </div>
   )

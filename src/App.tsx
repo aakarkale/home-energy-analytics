@@ -277,6 +277,7 @@ export default function App() {
     isAuthed,
     hasMyData: store.hasMyData,
     onboarded: store.onboarded,
+    demoVisitor: !isAuthed && !store.hasMyData,
     greeting,
     // Settings and Account are not about a billing period, so the data range
     // would be noise there.
@@ -322,6 +323,19 @@ export default function App() {
       setTheme(t)
     },
     setMode: store.setMode,
+    // Dropping the per-tab flag is what takes the app away: with no session and
+    // no upload of their own, the visitor is no longer inApp and the landing
+    // page renders. A push, not a replace: this is the visitor's own move.
+    exitDemo: () => {
+      try {
+        sessionStorage.removeItem(DEMO_VISIT_KEY)
+      } catch {
+        /* private mode */
+      }
+      setDemoVisit(false)
+      setOb(false)
+      navigate(ROUTES.landing)
+    },
 
     openOb: (step = 0, tab) => {
       setObStep(step)

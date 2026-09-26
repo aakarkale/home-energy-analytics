@@ -71,6 +71,10 @@ export interface Hearth {
   /** True once this account has finished the setup wizard. Drives whether the
    *  "replay setup" affordance is still worth showing. */
   onboarded: boolean
+  /** True when a visitor is here only to look at the demo: not signed in and
+   *  holding no upload of their own. They get Exit demo in place of the
+   *  profile menu. */
+  demoVisitor: boolean
   greeting: string
   subtitle: string
   userLabel: { name: string; sub: string; initials: string }
@@ -98,6 +102,8 @@ export interface Hearth {
   setFilter: (filter: EventFilter) => void
   toggleTheme: () => void
   setMode: (mode: Mode) => void
+  /** Leaves the demo for the landing page. */
+  exitDemo: () => void
 
   openOb: (step?: number, tab?: ObTab) => void
   closeOb: () => void
