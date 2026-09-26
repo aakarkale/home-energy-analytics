@@ -43,6 +43,9 @@ How it works here:
 - **Motion follows the Kole rules**: 150ms interaction states, ~500ms ease-out
   entrances, all disabled under `prefers-reduced-motion`.
 - **No em-dashes in user-facing copy.**
+- **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
+  `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
+  account (under 14 days old) lands on that page.
 
 ## Commands
 

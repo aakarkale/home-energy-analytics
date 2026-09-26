@@ -28,6 +28,7 @@ import { Landing } from './components/Landing'
 import { Sidebar } from './components/Sidebar'
 import { Header } from './components/Header'
 import { MobileTabBar } from './components/MobileTabBar'
+import { PageTip, tipAudience } from './components/PageTip'
 import { Onboarding } from './components/Onboarding'
 import { Overview } from './pages/Overview'
 import { Energy } from './pages/Energy'
@@ -478,6 +479,13 @@ export default function App() {
           {isMobile && <MobileTabBar hearth={hearth} />}
         </div>
       </div>
+
+      <PageTip
+        page={page}
+        audience={tipAudience(store.session?.user)}
+        paused={ob}
+        placement={isDesktop ? 'right' : 'top'}
+      />
 
       {ob && <Onboarding hearth={hearth} store={store} initialTab={obTab} />}
     </div>

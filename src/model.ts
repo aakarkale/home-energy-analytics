@@ -1,11 +1,52 @@
 import type { Fuel, Page } from './types'
 
-export const NAV_PAGES: { id: Page; label: string; short: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', short: 'Home', icon: 'ph ph-squares-four' },
-  { id: 'energy', label: 'Energy', short: 'Energy', icon: 'ph ph-chart-line-up' },
-  { id: 'rates', label: 'Rates', short: 'Rates', icon: 'ph ph-receipt' },
-  { id: 'playbook', label: 'AC Playbook', short: 'Playbook', icon: 'ph ph-snowflake' },
-  { id: 'activity', label: 'Activity', short: 'Activity', icon: 'ph ph-pulse' },
+export interface NavPage {
+  id: Page
+  label: string
+  short: string
+  icon: string
+  /** One line on what the screen is for. New users see it once, beside the
+   *  tab, the first time they land on the page (see PageTip). Required, so a
+   *  tab added later cannot arrive unexplained. */
+  brief: string
+}
+
+export const NAV_PAGES: NavPage[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    short: 'Home',
+    icon: 'ph ph-squares-four',
+    brief: 'Your home at a glance: usage, projected bill and the biggest ways to save.',
+  },
+  {
+    id: 'energy',
+    label: 'Energy',
+    short: 'Energy',
+    icon: 'ph ph-chart-line-up',
+    brief: 'When your home uses energy, from the daily trend down to your typical hour.',
+  },
+  {
+    id: 'rates',
+    label: 'Rates',
+    short: 'Rates',
+    icon: 'ph ph-receipt',
+    brief: 'What each kWh really costs you, peak or off-peak, below or above your allowance.',
+  },
+  {
+    id: 'playbook',
+    label: 'AC Playbook',
+    short: 'Playbook',
+    icon: 'ph ph-snowflake',
+    brief: "A thermostat schedule built from this week's forecast, so you cool before peak prices.",
+  },
+  {
+    id: 'activity',
+    label: 'Activity',
+    short: 'Activity',
+    icon: 'ph ph-pulse',
+    brief: 'Days that broke from your normal, plus quick questions that sharpen your tips.',
+  },
 ]
 
 export const PAGE_TITLES: Record<Page, string> = {
