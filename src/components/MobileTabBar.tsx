@@ -33,6 +33,7 @@ export function MobileTabBar({ hearth }: { hearth: Hearth }) {
               hearth.go(nav.id)
             }}
             aria-current={active ? 'page' : undefined}
+            data-nav-tab={nav.id}
             className="h-interactive press96"
             style={{
               display: 'flex',

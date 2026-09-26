@@ -77,6 +77,7 @@ export function Sidebar({ hearth, store }: { hearth: Hearth; store: HearthStore 
               hearth.go(nav.id)
             }}
             aria-current={active ? 'page' : undefined}
+            data-nav-tab={nav.id}
             className="h-interactive hov-fg0"
             style={{
               display: 'flex',
