@@ -49,6 +49,10 @@ How it works here:
   overlapping readings keep the saved copy unless they choose the file's. The
   merged history is stored as one CSV and updated in place, so annotations keyed
   to the row survive. Guests' files still replace. Demo view has no upload.
+- **Email links land on `/signin`.** A confirmation link's session is never used:
+  `readEmailLanding` (`src/lib/api.ts`) strips the token before the Supabase client
+  can read it, revokes it, and sign-in says the address is confirmed. Auth redirect
+  URLs are full paths, since the allow-list's `/**` entries never match a bare origin.
 - **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
   `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
   account (under 14 days old) lands on that page.
