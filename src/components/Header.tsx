@@ -59,6 +59,8 @@ export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }
   const themeLabel = hearth.light ? 'Dark mode' : 'Light mode'
   const title = hearth.page === 'overview' ? hearth.greeting : PAGE_TITLES[hearth.page]
   const uploadStep = hearth.isAuthed || hearth.hasMyData ? 2 : 0
+  // The sample home is for looking around, not for adding files to.
+  const canUpload = hearth.mode !== 'demo'
   // Only the screens that actually read the selected fuel get the switch; see
   // PER_FUEL_PAGES. Elsewhere it would be a control that changes nothing.
   const showFuel = PER_FUEL_PAGES[hearth.page]
@@ -130,28 +132,30 @@ export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }
       {isDesktop && (
         <>
           {showFuel && <FuelTabs hearth={hearth} mobile={false} />}
-          <button
-            onClick={() => hearth.openOb(uploadStep)}
-            className="h-interactive btn-acc press98"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '8px 16px',
-              borderRadius: 100,
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-dm-sans)',
-              fontSize: 13,
-              fontWeight: 700,
-              background: 'var(--acc,#ffdd55)',
-              color: '#0a0a0a',
-              flex: 'none',
-            }}
-          >
-            <i className="ph ph-plus" style={{ fontSize: 14 }} />
-            Upload CSV
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => hearth.openOb(uploadStep)}
+              className="h-interactive btn-acc press98"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '8px 16px',
+                borderRadius: 100,
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-dm-sans)',
+                fontSize: 13,
+                fontWeight: 700,
+                background: 'var(--acc,#ffdd55)',
+                color: '#0a0a0a',
+                flex: 'none',
+              }}
+            >
+              <i className="ph ph-plus" style={{ fontSize: 14 }} />
+              Upload CSV
+            </button>
+          )}
           <button
             onClick={hearth.toggleTheme}
             title={themeLabel}
@@ -202,25 +206,28 @@ export function Header({ hearth, store }: { hearth: Hearth; store: HearthStore }
               </span>
             </ProfileMenu>
           )}
-          <button
-            onClick={() => hearth.openOb(uploadStep)}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 100,
-              border: '1px solid var(--glass-12)',
-              cursor: 'pointer',
-              background: 'var(--glass-11)',
-              color: 'var(--fg-1)',
-              fontSize: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 'none',
-            }}
-          >
-            <i className="ph ph-plus" />
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => hearth.openOb(uploadStep)}
+              aria-label="Upload CSV"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 100,
+                border: '1px solid var(--glass-12)',
+                cursor: 'pointer',
+                background: 'var(--glass-11)',
+                color: 'var(--fg-1)',
+                fontSize: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 'none',
+              }}
+            >
+              <i className="ph ph-plus" />
+            </button>
+          )}
           {showFuel && <FuelTabs hearth={hearth} mobile />}
         </>
       )}

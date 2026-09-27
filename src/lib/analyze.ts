@@ -73,7 +73,9 @@ export interface FuelAnalysis {
   dowAvg: number[]
   weekendDeltaPct: number
   events: EnergyEvent[]
-  projection?: { projected: number; dayN: number; cycleDays: number }
+  /** Projected bill for the billing cycle holding the last reading; start and
+   *  end are that cycle's dates. */
+  projection?: { projected: number; dayN: number; cycleDays: number; start: string; end: string }
   activeGas?: {
     days: number
     of: number
@@ -476,7 +478,7 @@ export function analyzeFuel(
       const spent = inCycle.reduce((x, d) => x + d.cost, 0)
       const recent = daily.slice(-14).map((d) => d.cost)
       const projected = spent + Math.max(0, cycleDays - dayN) * median(recent)
-      a.projection = { projected, dayN, cycleDays }
+      a.projection = { projected, dayN, cycleDays, start: cycle.start, end: cycle.end }
     }
   }
 

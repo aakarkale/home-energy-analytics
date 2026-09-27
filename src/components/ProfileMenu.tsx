@@ -200,9 +200,11 @@ export function ProfileMenu({
 
           <Divider />
 
-          {action('ph ph-upload-simple', 'Upload a CSV', () =>
-            hearth.openOb(hearth.isAuthed || hearth.hasMyData ? 2 : 0),
-          )}
+          {/* Nothing is uploaded into the sample home; switch back to your data first. */}
+          {hearth.mode !== 'demo' &&
+            action('ph ph-upload-simple', 'Upload a CSV', () =>
+              hearth.openOb(hearth.isAuthed || hearth.hasMyData ? 2 : 0),
+            )}
           {action('ph ph-question', 'How Hearth reads your bill', () => hearth.go('rates'))}
 
           <Divider />

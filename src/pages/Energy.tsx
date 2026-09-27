@@ -298,6 +298,36 @@ export function Energy({ hearth }: { hearth: Hearth }) {
                     </div>
                   </div>
                 ))}
+                {a.tou && (
+                  // The peak window's edges, drawn in the 2px gutters either side of it.
+                  // Absolutely positioned on the cells' grid area, so it spans every
+                  // row without taking up a grid cell of its own.
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      gridColumn: 2,
+                      gridRow: `2 / ${a.heat.rows.length + 2}`,
+                      inset: 0,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {[a.tou.startHour, a.tou.endHour + 1].map((h) => (
+                      <div
+                        key={h}
+                        style={{
+                          position: 'absolute',
+                          top: -3,
+                          bottom: -3,
+                          width: 2,
+                          borderRadius: 1,
+                          background: 'var(--acc,#ffdd55)',
+                          left: h <= 0 ? 0 : h >= 24 ? 'calc(100% - 2px)' : `calc(${h} * (100% + 2px) / 24 - 2px)`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
                 {cell && (
                   <ChartTip
                     tip={{
@@ -326,7 +356,15 @@ export function Energy({ hearth }: { hearth: Hearth }) {
                   ))}
                 </div>
                 <span>More</span>
-                <span style={{ marginLeft: 'auto' }}>Ring = flagged spike</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {a.tou && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span aria-hidden="true" style={{ width: 2, height: 11, borderRadius: 1, background: 'var(--acc,#ffdd55)' }} />
+                      Peak {a.tou.label}
+                    </span>
+                  )}
+                  <span>Ring = flagged spike</span>
+                </span>
               </div>
             </div>
           )}

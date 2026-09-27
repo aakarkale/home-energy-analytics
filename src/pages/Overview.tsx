@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import type { Fuel, Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { seriesPath } from '../lib/svg'
-import { fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum, fmtTemp } from '../lib/format'
+import { fmtDateNum, fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum, fmtTemp } from '../lib/format'
 import { FUEL_ICON } from '../model'
 import { EmptyState } from '../components/EmptyState'
 import { HoverChart, TempToggle } from '../components/chart'
@@ -15,6 +15,8 @@ const card: CSSProperties = {
 
 interface Kpi {
   label: string
+  /** The dates the figure covers, so a total never floats free of its period. */
+  range: string
   value: string
   unit: string
   sub: string
@@ -44,9 +46,11 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
   const sp = seriesPath(usage.slice(-14), 120, 32, 2)
   const spC = seriesPath(cost.slice(-14), 120, 32, 2)
 
+  const dataRange = `${fmtDateNum(a.periodStart)} – ${fmtDateNum(a.periodEnd)}`
   const kpis: Kpi[] = [
     {
       label: 'Total usage',
+      range: dataRange,
       value: fmtNum(a.totalUsage, 1),
       unit: a.unit,
       sub: `${fmtNum(a.avgUsage, elec ? 1 : 2)} ${a.unit} avg per day`,
@@ -59,6 +63,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
     },
     {
       label: 'Total cost',
+      range: dataRange,
       value: fmtMoney(a.totalCost),
       unit: '',
       sub: `${fmtMoney(a.avgCost)} avg per day`,
@@ -72,15 +77,17 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
     },
     a.projection
       ? {
-          label: 'Projected bill · this cycle',
+          label: 'Projected bill',
+          range: `Cycle ${fmtDateNum(a.projection.start)} – ${fmtDateNum(a.projection.end)}`,
           value: fmtMoney0(a.projection.projected),
           unit: '',
           sub: `Day ${a.projection.dayN} of ${a.projection.cycleDays} · on pace`,
           spark: false,
         }
       : {
-          label: 'Projected bill · this cycle',
-          value: '—',
+          label: 'Projected bill',
+          range: 'No billing cycle yet',
+          value: '–',
           unit: '',
           sub: 'Set your billing cycle in setup',
           spark: false,
@@ -89,6 +96,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
       ? a.alwaysOn
         ? {
             label: 'Always-on load',
+            range: dataRange,
             value: a.alwaysOn.kwhPerHr.toFixed(2),
             unit: 'kWh/hr',
             sub: `≈ ${fmtMoney0(a.alwaysOn.monthlyCost)}/mo of standby`,
@@ -96,6 +104,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           }
         : {
             label: 'Biggest day',
+            range: dataRange,
             value: fmtNum(Math.max(...usage), 0),
             unit: a.unit,
             sub: 'Hourly exports unlock always-on load',
@@ -103,6 +112,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           }
       : {
           label: 'Active gas days',
+          range: dataRange,
           value: String(a.activeGas?.days ?? 0),
           unit: `of ${a.activeGas?.of ?? a.days}`,
           sub: `≈ ${(a.activeGas?.avgWhenOn ?? 0).toFixed(2)} therms when on`,
@@ -133,8 +143,11 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             className="h-fade-up"
             style={{ ...card, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, animationDelay: `${ki * 60}ms` }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
-              {k.label}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--fg-4)' }}>
+                {k.label}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' }}>{k.range}</div>
             </div>
             <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--fg-0)', letterSpacing: '-0.025em', lineHeight: 1 }}>
               {k.value}

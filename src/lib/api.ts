@@ -148,6 +148,25 @@ export async function fetchUploads(userId: string): Promise<Partial<Record<Fuel,
   return out
 }
 
+/** The uploads row for a parsed file, minus who owns it. */
+function uploadRow(parsed: ParsedUpload, billing: { start: string; end: string } | null) {
+  return {
+    file_name: parsed.fileName,
+    fuel: parsed.fuel,
+    unit: parsed.unit,
+    granularity: parsed.granularity,
+    service_id: parsed.serviceRef ?? null,
+    period_start: parsed.periodStart,
+    period_end: parsed.periodEnd,
+    row_count: parsed.rowCount,
+    total_usage: parsed.totalUsage,
+    total_cost: parsed.totalCost,
+    csv: parsed.csv,
+    billing_start: billing?.start ?? null,
+    billing_end: billing?.end ?? null,
+  }
+}
+
 export async function insertUpload(
   userId: string,
   parsed: ParsedUpload,
@@ -160,22 +179,7 @@ export async function insertUpload(
   }
   const { data, error } = await supabase
     .from('uploads')
-    .insert({
-      user_id: userId,
-      file_name: parsed.fileName,
-      fuel: parsed.fuel,
-      unit: parsed.unit,
-      granularity: parsed.granularity,
-      service_id: parsed.serviceRef ?? null,
-      period_start: parsed.periodStart,
-      period_end: parsed.periodEnd,
-      row_count: parsed.rowCount,
-      total_usage: parsed.totalUsage,
-      total_cost: parsed.totalCost,
-      csv: parsed.csv,
-      billing_start: billing?.start ?? null,
-      billing_end: billing?.end ?? null,
-    })
+    .insert({ user_id: userId, ...uploadRow(parsed, billing) })
     .select('id')
     .single()
   if (error) {
@@ -183,6 +187,26 @@ export async function insertUpload(
     return null
   }
   return data.id
+}
+
+/**
+ * Rewrites a saved upload with its merged history. Updating in place keeps the
+ * row's id, and with it every annotation made against the days already saved.
+ */
+export async function updateUpload(
+  id: string,
+  parsed: ParsedUpload,
+  billing: { start: string; end: string } | null,
+): Promise<{ error?: string }> {
+  const { data, error } = await supabase
+    .from('uploads')
+    .update(uploadRow(parsed, billing))
+    .eq('id', id)
+    .select('id')
+  if (error) return { error: error.message }
+  // RLS turns an update of someone else's row into zero rows, not an error.
+  if (!data?.length) return { error: 'That upload is no longer on your account.' }
+  return {}
 }
 
 export async function deleteUpload(id: string): Promise<void> {
