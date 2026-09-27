@@ -12,6 +12,7 @@ import type { Session, UploadRecord } from './lib/api'
 import { parseGreenButtonCsv, type ParsedUpload } from './lib/parse'
 import { SAMPLE_BILLING, sampleUploads } from './lib/sample'
 import { getForecast, REFRESH_MS, type ForecastDay } from './lib/weather'
+import { mergeUploads, reviewUpload, type UploadChoice } from './lib/merge'
 
 const MODE_KEY = 'hearth-mode'
 const GUEST_UPLOADS_KEY = 'hearth-guest-uploads'
@@ -85,6 +86,10 @@ export interface HearthStore {
   /** Uploads for the active mode (sample data in demo). */
   uploads: Partial<Record<Fuel, UploadRecord>>
   myUploads: Partial<Record<Fuel, UploadRecord>>
+  /** False while a signed-in account's saved data is still loading. An upload
+   *  is compared against that data before it is saved, so the comparison has
+   *  to wait for it. Always true for guests, whose data is already local. */
+  myDataReady: boolean
   hasMyData: boolean
   answers: Record<string, string[]>
   evMeta: Record<string, EvMetaEntry>
@@ -119,7 +124,14 @@ export interface HearthStore {
   completeOnboarding: () => void
   deleteAllMyData: () => Promise<{ error?: string }>
   clearGuestData: () => void
-  commitUploads: (parsed: ParsedUpload[], billing: { start: string; end: string } | null) => Promise<void>
+  /** Saves new files. A signed-in account merges each into its saved history
+   *  for that fuel as `choices` says (keeping saved readings where they
+   *  overlap, unless told otherwise); a guest's file replaces what was there. */
+  commitUploads: (
+    parsed: ParsedUpload[],
+    billing: { start: string; end: string } | null,
+    choices?: Partial<Record<Fuel, UploadChoice>>,
+  ) => Promise<{ error?: string }>
   removeMyUpload: (fuel: Fuel) => Promise<void>
   setAnswerValue: (key: string, vals: string[] | null) => void
   setEvMeta: (fuel: Fuel, date: string, meta: EvMetaEntry) => void
@@ -165,6 +177,7 @@ export function useHearthStore(): HearthStore {
   /** The `user:zip` pair whose sign-in refresh has already been spent. */
   const forcedFor = useRef<string | null>(null)
   const [onboarded, setOnboarded] = useState(false)
+  const [accountLoaded, setAccountLoaded] = useState(false)
   const loadedFor = useRef<string | null>(null)
 
   const setMode = useCallback((m: Mode) => {
@@ -199,6 +212,7 @@ export function useHearthStore(): HearthStore {
     const userId = session?.user?.id ?? null
     if (!userId) {
       loadedFor.current = null
+      setAccountLoaded(false)
       setOnboarded(false)
       setAccountUploads({})
       setAccountAnswers({})
@@ -207,9 +221,11 @@ export function useHearthStore(): HearthStore {
     }
     if (loadedFor.current === userId) return
     loadedFor.current = userId
+    setAccountLoaded(false)
     let cancelled = false
+    let done = false
     ;(async () => {
-      const [prof, uploads, answers, done] = await Promise.all([
+      const [prof, uploads, answers, isOnboarded] = await Promise.all([
         api.fetchProfile(userId),
         api.fetchUploads(userId),
         api.fetchAnswers(userId),
@@ -217,8 +233,9 @@ export function useHearthStore(): HearthStore {
       ])
       if (cancelled) return
       setProfile(prof)
-      setOnboarded(done)
+      setOnboarded(isOnboarded)
       setAccountUploads(uploads)
+      setAccountLoaded(true)
       setAccountAnswers(answers)
       const ids: Partial<Record<Fuel, string>> = {}
       for (const [fuel, rec] of Object.entries(uploads)) {
@@ -230,9 +247,13 @@ export function useHearthStore(): HearthStore {
       if (Object.keys(uploads).length && readJson<string | null>(MODE_KEY, null) === null) {
         setModeState('live')
       }
+      done = true
     })()
     return () => {
       cancelled = true
+      // A session refresh can land mid-load. Let the next run fetch again
+      // rather than skip a user whose data never arrived.
+      if (!done) loadedFor.current = null
     }
   }, [session])
 
@@ -392,17 +413,48 @@ export function useHearthStore(): HearthStore {
   )
 
   const commitUploads = useCallback(
-    async (parsedList: ParsedUpload[], billing: { start: string; end: string } | null) => {
+    async (
+      parsedList: ParsedUpload[],
+      billing: { start: string; end: string } | null,
+      choices: Partial<Record<Fuel, UploadChoice>> = {},
+    ): Promise<{ error?: string }> => {
+      let error: string | undefined
       if (session) {
         const next = { ...accountUploads }
         for (const parsed of parsedList) {
-          const replaceId = next[parsed.fuel]?.id ?? null
-          const id = await api.insertUpload(session.user.id, parsed, billing, replaceId)
-          next[parsed.fuel] = { id, parsed, billing }
+          const saved = next[parsed.fuel]
+          const choice = choices[parsed.fuel] ?? 'keep'
+          const review = saved ? reviewUpload(saved.parsed, parsed) : null
+          if (saved?.id && review && choice !== 'replace-all') {
+            // Hourly and daily readings, or two different meters, cannot share
+            // a history. Only an explicit replace may overwrite what is saved.
+            if (review.blocked) continue
+            // Nothing new and nothing to overwrite: the history stays as it
+            // is, and only the billing cycle from this pass is saved.
+            const merged =
+              choice === 'keep' && review.addedDays === 0
+                ? saved.parsed
+                : mergeUploads(saved.parsed, parsed, choice)
+            const res = await api.updateUpload(saved.id, merged, billing)
+            if (res.error) {
+              error = res.error
+              break
+            }
+            next[parsed.fuel] = { id: saved.id, parsed: merged, billing }
+          } else {
+            const id = await api.insertUpload(session.user.id, parsed, billing, saved?.id ?? null)
+            if (!id) {
+              error = `Couldn't save ${parsed.fileName}. Try again in a moment.`
+              break
+            }
+            next[parsed.fuel] = { id, parsed, billing }
+          }
         }
         setAccountUploads(next)
-        void api.markOnboarded(session.user.id)
-        setOnboarded(true)
+        if (!error) {
+          void api.markOnboarded(session.user.id)
+          setOnboarded(true)
+        }
       } else {
         setGuestUploads((prev) => {
           const next = { ...prev }
@@ -411,7 +463,8 @@ export function useHearthStore(): HearthStore {
           return next
         })
       }
-      if (parsedList.length) setMode('live')
+      if (parsedList.length && !error) setMode('live')
+      return error ? { error } : {}
     },
     [session, accountUploads, setMode],
   )
@@ -514,6 +567,7 @@ export function useHearthStore(): HearthStore {
     setMode,
     uploads,
     myUploads,
+    myDataReady: !session || accountLoaded,
     hasMyData: Object.keys(myUploads).length > 0,
     answers,
     evMeta,

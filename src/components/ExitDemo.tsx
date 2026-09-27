@@ -1,23 +1,20 @@
 import type { Hearth } from '../types'
 
 // A visitor who is only here for the demo has no "you" for the profile menu to
-// be about, so they get a plain way back to the homepage in its place. The
-// sidebar gets a row the same size as the profile trigger it stands in for;
-// the phone header gets a pill beside the upload button.
+// be about, so they get a plain way back to the homepage in its place, in red
+// so it stands out as the way out. The sidebar gets a row the same size as the
+// profile trigger it stands in for; the phone header gets a pill.
 
 export function ExitDemo({ hearth, variant }: { hearth: Hearth; variant: 'row' | 'pill' }) {
   if (variant === 'pill') {
     return (
       <button
         onClick={hearth.exitDemo}
-        className="h-interactive hov-bd press98"
+        className="h-interactive exit-demo press98"
         style={{
           height: 34,
           padding: '0 13px 0 11px',
           borderRadius: 100,
-          border: '1px solid var(--glass-12)',
-          background: 'var(--glass-11)',
-          color: 'var(--fg-1)',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
@@ -38,7 +35,7 @@ export function ExitDemo({ hearth, variant }: { hearth: Hearth; variant: 'row' |
   return (
     <button
       onClick={hearth.exitDemo}
-      className="h-interactive hov-bg3"
+      className="h-interactive exit-demo press98"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -46,8 +43,6 @@ export function ExitDemo({ hearth, variant }: { hearth: Hearth; variant: 'row' |
         width: '100%',
         padding: '6px 6px',
         borderRadius: 10,
-        border: 'none',
-        background: 'transparent',
         cursor: 'pointer',
         fontFamily: 'var(--font-dm-sans)',
         textAlign: 'left',
@@ -59,26 +54,26 @@ export function ExitDemo({ hearth, variant }: { hearth: Hearth; variant: 'row' |
           width: 28,
           height: 28,
           borderRadius: 8,
-          background: 'var(--bg-5)',
+          background: 'color-mix(in srgb, var(--accent-red) 16%, transparent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 15,
-          color: 'var(--fg-1)',
+          color: 'var(--accent-red)',
           flex: 'none',
         }}
       >
         <i className="ph ph-sign-out" />
       </span>
       <span style={{ minWidth: 0, flex: 1 }}>
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--accent-red)' }}>
           Exit demo
         </span>
         <span
           style={{
             display: 'block',
             fontSize: 11,
-            color: 'var(--fg-4)',
+            color: 'var(--fg-3)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -87,7 +82,7 @@ export function ExitDemo({ hearth, variant }: { hearth: Hearth; variant: 'row' |
           Back to the homepage
         </span>
       </span>
-      <i className="ph ph-arrow-right" aria-hidden="true" style={{ fontSize: 14, color: 'var(--fg-4)', flex: 'none' }} />
+      <i className="ph ph-arrow-right" aria-hidden="true" style={{ fontSize: 14, color: 'var(--accent-red)', flex: 'none' }} />
     </button>
   )
 }

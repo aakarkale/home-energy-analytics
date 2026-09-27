@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { Hearth, ObTab, Profile } from '../types'
+import type { Fuel, Hearth, ObTab, Profile } from '../types'
 import type { HearthStore } from '../store'
 import { parseGreenButtonCsv, ParseError, type DateOrder, type ParsedUpload } from '../lib/parse'
 import { analyzeFuel } from '../lib/analyze'
+import { mergeUploads, reviewUpload, type UploadChoice, type UploadReview } from '../lib/merge'
 import { fmtDateNum, fmtMoney0 } from '../lib/format'
 import { FUEL_ICON } from '../model'
+import { needsConfirmation, UploadReviewCard } from './UploadReview'
 
 const OB_TITLES = ['Welcome to Hearth', 'Your home', 'Your data', 'Billing cycle']
 
@@ -125,6 +127,16 @@ export function Onboarding({
   const [parseErrors, setParseErrors] = useState<string[]>([])
   const [billing, setBilling] = useState<{ start: string; end: string } | null>(null)
   const [finishing, setFinishing] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  /** How each file joins the saved history. Absent means the default: keep
+   *  what is saved wherever the two overlap. */
+  const [choices, setChoices] = useState<Partial<Record<Fuel, UploadChoice>>>({})
+  const forgetChoice = (fuel: Fuel) =>
+    setChoices((prev) => {
+      const next = { ...prev }
+      delete next[fuel]
+      return next
+    })
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -140,9 +152,39 @@ export function Onboarding({
     setBilling((prev) => prev ?? { start, end })
   }, [parsed])
 
+  // A signed-in account's files join its saved history, so each one is checked
+  // against that history before anything is saved. Guests and the demo keep
+  // the simple rule: a new file replaces the old one.
+  const checking = hearth.isAuthed && !store.myDataReady && parsed.length > 0
+  const reviews = useMemo(() => {
+    const out: Partial<Record<Fuel, { saved: ParsedUpload; review: UploadReview }>> = {}
+    if (!hearth.isAuthed || !store.myDataReady) return out
+    for (const p of parsed) {
+      const saved = store.myUploads[p.fuel]?.parsed
+      if (saved) out[p.fuel] = { saved, review: reviewUpload(saved, p) }
+    }
+    return out
+  }, [parsed, hearth.isAuthed, store.myDataReady, store.myUploads])
+  const choiceFor = (fuel: Fuel): UploadChoice => choices[fuel] ?? 'keep'
+  const toConfirm = Object.values(reviews).some((r) => r && needsConfirmation(r.review))
+  const unresolved = Object.entries(reviews).some(
+    ([fuel, r]) => r?.review.blocked && choices[fuel as Fuel] !== 'replace-all',
+  )
+
+  /** Each file as it will look once saved, for the billing-step summary. */
+  const previews = useMemo(
+    () =>
+      parsed.map((p) => {
+        const r = reviews[p.fuel]
+        const choice = choices[p.fuel] ?? 'keep'
+        return r && !r.review.blocked && choice !== 'replace-all' ? mergeUploads(r.saved, p, choice) : p
+      }),
+    [parsed, reviews, choices],
+  )
+
   const summary = useMemo(() => {
-    if (!parsed.length || !billing) return null
-    const primary = parsed.find((p) => p.fuel === 'electric') ?? parsed[0]
+    if (!previews.length || !billing) return null
+    const primary = previews.find((p) => p.fuel === 'electric') ?? previews[0]
     const a = analyzeFuel(primary, billing)
     return a.projection
       ? {
@@ -151,7 +193,7 @@ export function Onboarding({
           projected: fmtMoney0(a.projection.projected),
         }
       : null
-  }, [parsed, billing])
+  }, [previews, billing])
 
   async function handleFiles(files: FileList | File[]) {
     const errs: string[] = []
@@ -164,6 +206,7 @@ export function Onboarding({
         errs.push(`${file.name}: ${e instanceof ParseError ? e.message : 'could not read this file.'}`)
       }
     }
+    for (const add of additions) forgetChoice(add.fuel)
     setParsed((prev) => {
       const next = [...prev]
       for (const add of additions) {
@@ -178,6 +221,7 @@ export function Onboarding({
 
   /** Re-read one ambiguous file in the order the user picked. */
   function resolveDateOrder(target: ParsedUpload, order: DateOrder) {
+    forgetChoice(target.fuel)
     setParsed((prev) =>
       prev.map((p) => {
         if (p.fuel !== target.fuel) return p
@@ -271,8 +315,13 @@ export function Onboarding({
   async function finish() {
     if (parsed.length) {
       setFinishing(true)
-      await store.commitUploads(parsed, billing)
+      setSaveError(null)
+      const res = await store.commitUploads(parsed, billing, choices)
       setFinishing(false)
+      if (res.error) {
+        setSaveError(res.error)
+        return
+      }
     }
     // Reaching the end is what makes setup done, file or no file. From here on
     // the same fields live in Settings.
@@ -661,29 +710,49 @@ export function Onboarding({
               </div>
             </div>
 
-            {parsed.map((p) => (
-              <div
-                key={p.fuel}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: 'var(--bg-3)', border: '1px solid var(--bg-6)' }}
-              >
-                <i className={FUEL_ICON[p.fuel].icon} style={{ fontSize: 17, color: FUEL_ICON[p.fuel].color, flex: 'none' }} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {p.fileName}
+            {parsed.map((p) => {
+              const r = reviews[p.fuel]
+              return (
+                <div key={p.fuel} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: 'var(--bg-3)', border: '1px solid var(--bg-6)' }}
+                  >
+                    <i className={FUEL_ICON[p.fuel].icon} style={{ fontSize: 17, color: FUEL_ICON[p.fuel].color, flex: 'none' }} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {p.fileName}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>
+                        {p.fuel} · {p.granularity} · {p.rowCount} rows · {fmtDateNum(p.periodStart)} – {fmtDateNum(p.periodEnd)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        forgetChoice(p.fuel)
+                        setParsed((prev) => prev.filter((x) => x.fuel !== p.fuel))
+                      }}
+                      aria-label={`Remove ${p.fileName}`}
+                      className="h-interactive hov-fg0"
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--fg-4)', fontSize: 14, padding: 4 }}
+                    >
+                      <i className="ph ph-x" />
+                    </button>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--fg-4)', marginTop: 2 }}>
-                    {p.fuel} · {p.granularity} · {p.rowCount} rows · {fmtDateNum(p.periodStart)} – {fmtDateNum(p.periodEnd)}
-                  </div>
+                  {r && (
+                    <UploadReviewCard
+                      saved={r.saved}
+                      incoming={p}
+                      review={r.review}
+                      choice={choiceFor(p.fuel)}
+                      onChoice={(c) => setChoices((prev) => ({ ...prev, [p.fuel]: c }))}
+                    />
+                  )}
                 </div>
-                <button
-                  onClick={() => setParsed((prev) => prev.filter((x) => x.fuel !== p.fuel))}
-                  className="h-interactive hov-fg0"
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--fg-4)', fontSize: 14, padding: 4 }}
-                >
-                  <i className="ph ph-x" />
-                </button>
-              </div>
-            ))}
+              )
+            })}
+            {checking && (
+              <div style={{ fontSize: 12, color: 'var(--fg-4)' }}>Checking against the data already on your account…</div>
+            )}
             {parsed.filter((p) => p.dateAmbiguous).map((p) => (
               <div
                 key={`amb-${p.fuel}`}
@@ -740,8 +809,13 @@ export function Onboarding({
                 Back
               </button>
               {parsed.length ? (
-                <button onClick={hearth.obNext} className="h-interactive btn-acc" style={{ ...ctaBtn, flex: 1 }}>
-                  Continue
+                <button
+                  onClick={hearth.obNext}
+                  disabled={checking || unresolved}
+                  className="h-interactive btn-acc"
+                  style={{ ...ctaBtn, flex: 1, opacity: checking || unresolved ? 0.55 : 1 }}
+                >
+                  {toConfirm ? 'Confirm and continue' : 'Continue'}
                 </button>
               ) : hearth.hasMyData ? (
                 <button onClick={hearth.obNext} className="h-interactive btn-acc" style={{ ...ctaBtn, flex: 1 }}>
@@ -819,6 +893,11 @@ export function Onboarding({
               </>
             ) : (
               <div style={noteStyle}>No new files this time, so your current data stays as is.</div>
+            )}
+            {saveError && (
+              <div role="alert" style={{ fontSize: 12, color: 'var(--accent-red)', lineHeight: 1.4 }}>
+                {saveError}
+              </div>
             )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={hearth.obBack} className="h-interactive hov-bg3" style={backBtn}>

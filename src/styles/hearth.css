@@ -89,6 +89,18 @@ select:focus-visible, input:focus-visible, button:focus-visible,
 .chip:hover { border-color: var(--fg-5) !important; }
 .dropzone:hover { border-color: var(--acc, #ffdd55) !important; background: var(--bg-3) !important; }
 
+/* Exit demo is the demo's one way out, so it is highlighted in red. The tints
+   come from --accent-red, which the light theme deepens for contrast. */
+.exit-demo {
+  color: var(--accent-red) !important;
+  background: color-mix(in srgb, var(--accent-red) 11%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-red) 38%, transparent) !important;
+}
+.exit-demo:hover {
+  background: color-mix(in srgb, var(--accent-red) 19%, transparent) !important;
+  border-color: var(--accent-red) !important;
+}
+
 .press96:active { transform: scale(0.96); }
 .press97:active { transform: scale(0.97); }
 .press98:active { transform: scale(0.98); }

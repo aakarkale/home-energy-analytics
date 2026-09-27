@@ -29,6 +29,10 @@ export interface ParsedUpload {
   totalUsage: number
   totalCost: number
   serviceRef?: string
+  /** The files a merged history was built from, oldest first. Only present on
+   *  data Hearth itself wrote back (see toGreenButtonCsv); a file straight from
+   *  PG&E is its own single source. */
+  sources?: string[]
   /** Which order the file's slashed dates were read in. */
   dateOrder: DateOrder
   /** True when both readings were valid, so the caller should confirm. */
@@ -38,6 +42,9 @@ export interface ParsedUpload {
 }
 
 export class ParseError extends Error {}
+
+/** Preamble label for the files a merged history came from. */
+const SOURCES_LABEL = 'Source files'
 
 /** Split one CSV line honoring double-quoted fields. */
 function splitCsvLine(line: string): string[] {
@@ -123,6 +130,7 @@ export function parseGreenButtonCsv(
   const lines = csv.split(/\r\n|\n|\r/)
 
   let serviceRef: string | undefined
+  let sources: string[] | undefined
   let headerIdx = -1
   let header: string[] = []
   for (let i = 0; i < lines.length; i++) {
@@ -130,6 +138,10 @@ export function parseGreenButtonCsv(
     const upper = cells.map((c) => c.toUpperCase())
     if (upper[0]?.startsWith('ACCOUNT NUMBER') && cells[1]) {
       serviceRef = cells[1].slice(-4)
+    }
+    if (upper[0] === SOURCES_LABEL.toUpperCase()) {
+      sources = cells.slice(1).filter(Boolean)
+      continue
     }
     if (upper.includes('DATE') && upper.some((c) => c.startsWith('USAGE'))) {
       headerIdx = i
@@ -233,8 +245,51 @@ export function parseGreenButtonCsv(
     totalUsage: readings.reduce((a, r) => a + r.usage, 0),
     totalCost: readings.reduce((a, r) => a + r.cost, 0),
     ...(serviceRef ? { serviceRef } : {}),
+    ...(sources?.length ? { sources } : {}),
     dateOrder,
     dateAmbiguous,
     csv,
   }
+}
+
+
+const csvCell = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+/** Enough precision to round-trip a meter reading without float noise. */
+const csvNum = (v: number) => String(Math.round(v * 1e6) / 1e6)
+
+/**
+ * Writes readings back out as a Green Button CSV that parseGreenButtonCsv reads
+ * straight back to the same readings. Used to store an account's merged
+ * history as one file: ISO dates (so the order is never ambiguous), one row per
+ * reading, and a "Source files" line naming what it was built from.
+ */
+export function toGreenButtonCsv(u: {
+  fuel: Fuel
+  unit: 'kWh' | 'therms'
+  granularity: 'hourly' | 'daily'
+  readings: Reading[]
+  serviceRef?: string
+  sources?: string[]
+}): string {
+  const lines = ['Hearth usage history']
+  if (u.serviceRef) lines.push(`Account Number,${csvCell(u.serviceRef)}`)
+  if (u.sources?.length) lines.push([SOURCES_LABEL, ...u.sources.map(csvCell)].join(','))
+  lines.push('')
+  const type = u.fuel === 'gas' ? 'Natural gas usage' : 'Electric usage'
+  const hourly = u.granularity === 'hourly'
+  lines.push(
+    hourly
+      ? `TYPE,DATE,START TIME,END TIME,USAGE (${u.unit}),COST,NOTES`
+      : `TYPE,DATE,USAGE (${u.unit}),COST,NOTES`,
+  )
+  for (const r of u.readings) {
+    const note = r.est ? 'Estimated reading' : ''
+    if (hourly) {
+      const hh = String(r.h ?? 0).padStart(2, '0')
+      lines.push([type, r.d, `${hh}:00`, `${hh}:59`, csvNum(r.usage), csvNum(r.cost), note].join(','))
+    } else {
+      lines.push([type, r.d, csvNum(r.usage), csvNum(r.cost), note].join(','))
+    }
+  }
+  return lines.join('\n') + '\n'
 }

@@ -43,6 +43,12 @@ How it works here:
 - **Motion follows the Kole rules**: 150ms interaction states, ~500ms ease-out
   entrances, all disabled under `prefers-reduced-motion`.
 - **No em-dashes in user-facing copy.**
+- **A signed-in account's uploads merge, they don't replace.** Each fuel is one
+  history (`src/lib/merge.ts`). Before saving, the upload step shows where a new
+  file overlaps that history and what gap it leaves, and the user confirms once;
+  overlapping readings keep the saved copy unless they choose the file's. The
+  merged history is stored as one CSV and updated in place, so annotations keyed
+  to the row survive. Guests' files still replace. Demo view has no upload.
 - **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
   `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
   account (under 14 days old) lands on that page.
