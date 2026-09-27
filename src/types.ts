@@ -3,7 +3,7 @@ import type { Insight, QDef, SavingItem } from './lib/content'
 import type { AcPlan } from './lib/acplan'
 import type { RatesAnalysis } from './lib/rates'
 
-export type Page = 'overview' | 'energy' | 'rates' | 'playbook' | 'activity' | 'settings' | 'account'
+export type Page = 'overview' | 'energy' | 'rates' | 'playbook' | 'calibrate' | 'settings' | 'account'
 export type Fuel = 'electric' | 'gas'
 export type Metric = 'usage' | 'cost'
 export type Theme = 'dark' | 'light'

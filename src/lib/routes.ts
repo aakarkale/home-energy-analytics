@@ -17,7 +17,7 @@ export const PAGE_PATHS: Record<Page, string> = {
   energy: '/energy',
   rates: '/rates',
   playbook: '/playbook',
-  activity: '/activity',
+  calibrate: '/calibrate',
   settings: '/settings',
   account: '/account',
 }
@@ -37,7 +37,7 @@ export const PAGE_TITLE: Record<Page, string> = {
   energy: 'Energy',
   rates: 'Rates',
   playbook: 'AC Playbook',
-  activity: 'Activity',
+  calibrate: 'Calibrate',
   settings: 'Settings',
   account: 'Account',
 }
@@ -55,8 +55,15 @@ export function normalizePath(raw: string): string {
   return trimmed || '/'
 }
 
+/** Where a screen used to live. The old address still opens it, and the app
+ *  then corrects the URL in place, so bookmarks and shared links keep working. */
+const MOVED_PATHS: Record<string, Page> = {
+  '/activity': 'calibrate',
+}
+
 export function pageForPath(raw: string): Page | null {
-  return BY_PATH.get(normalizePath(raw)) ?? null
+  const path = normalizePath(raw)
+  return BY_PATH.get(path) ?? MOVED_PATHS[path] ?? null
 }
 
 export interface Located {

@@ -214,7 +214,7 @@ function AnsweredRow({
   )
 }
 
-export function Activity({ hearth }: { hearth: Hearth }) {
+export function Calibrate({ hearth }: { hearth: Hearth }) {
   const { bundle } = hearth
   const [showDone, setShowDone] = useState(false)
   // Which answers the user is finished with. Seeded from what was already
