@@ -438,6 +438,12 @@ export function useHearthStore(): HearthStore {
     (fuel: Fuel, date: string, meta: EvMetaEntry) => {
       const key = `${fuel}:${date}`
       const apply = (prev: Record<string, EvMetaEntry>) => ({ ...prev, [key]: meta })
+      // An emptied tag leaves nothing to file: the day's question is open again.
+      if (!meta.cause && !meta.away) {
+        updateArchive((prev) =>
+          prev.events.includes(key) ? { ...prev, events: prev.events.filter((k) => k !== key) } : prev,
+        )
+      }
       if (mode === 'demo') {
         setDemoEvMeta((prev) => {
           const next = apply(prev)
@@ -456,7 +462,7 @@ export function useHearthStore(): HearthStore {
         })
       }
     },
-    [mode, session, accountUploads],
+    [mode, session, accountUploads, updateArchive],
   )
 
   const setArchived = useCallback(

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, TempUnit, Theme } from './types'
+import type { Fuel, FuelBundle, Hearth, Metric, ObTab, Page, TempUnit, Theme } from './types'
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
@@ -77,7 +77,6 @@ export default function App() {
   const page: Page = route.page ?? 'overview'
   const [fuel, setFuel] = useState<Fuel>('electric')
   const [metric, setMetric] = useState<Metric>('usage')
-  const [filter, setFilter] = useState<EventFilter>('All')
   const [demoVisit, setDemoVisit] = useState(() => {
     try {
       return sessionStorage.getItem(DEMO_VISIT_KEY) === '1'
@@ -269,7 +268,6 @@ export default function App() {
     fuel,
     metric,
     theme,
-    filter,
     ob,
     obStep,
 
@@ -329,7 +327,6 @@ export default function App() {
       setFuel(f)
     },
     setMetric,
-    setFilter,
     toggleTheme: () => {
       const t: Theme = theme === 'light' ? 'dark' : 'light'
       try {
@@ -389,14 +386,7 @@ export default function App() {
       setOtherDraftState((prev) => ({ ...prev, [key]: '' }))
     },
 
-    setCause: (f, date, cause) => {
-      const meta = store.evMeta[`${f}:${date}`] || {}
-      store.setEvMeta(f, date, { ...meta, cause })
-    },
-    toggleAway: (f, date) => {
-      const meta = store.evMeta[`${f}:${date}`] || {}
-      store.setEvMeta(f, date, { ...meta, away: !meta.away })
-    },
+    setDayTag: store.setEvMeta,
     setArchived: store.setArchived,
   }
 

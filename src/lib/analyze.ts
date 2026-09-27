@@ -43,6 +43,9 @@ export interface Tou {
 export interface EnergyEvent {
   id: string
   date: string
+  /** Which detector flagged the day: a peak-window evening, a whole high day,
+   *  a quiet day, a run of near-zero gas days, or a reading PG&E estimated. */
+  kind: 'evening' | 'high' | 'quiet' | 'run' | 'est'
   sev: 'high' | 'med' | 'low'
   type: 'Spike' | 'Quiet day' | 'Estimated'
   title: string
@@ -227,6 +230,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
         events.push({
           id: `${a.fuel}:evening:${d}`,
           date: d,
+          kind: 'evening',
           sev: 'high',
           type: 'Spike',
           title: `Evening spike · ${fmtDayShort(d)}`,
@@ -247,6 +251,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
         events.push({
           id: `${a.fuel}:high:${p.d}`,
           date: p.d,
+          kind: 'high',
           sev: p.usage > med + 4 * dev ? 'high' : 'med',
           type: 'Spike',
           title: `High day · ${fmtDayShort(p.d)}`,
@@ -258,6 +263,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
         events.push({
           id: `${a.fuel}:high:${p.d}`,
           date: p.d,
+          kind: 'high',
           sev: 'med',
           type: 'Spike',
           title: `High gas day · ${fmtDayShort(p.d)}`,
@@ -271,6 +277,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
       events.push({
         id: `${a.fuel}:quiet:${p.d}`,
         date: p.d,
+        kind: 'quiet',
         sev: 'low',
         type: 'Quiet day',
         title: `Quiet day · ${fmtDayShort(p.d)}`,
@@ -286,6 +293,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
       events.push({
         id: `${a.fuel}:est:${p.d}`,
         date: p.d,
+        kind: 'est',
         sev: 'low',
         type: 'Estimated',
         title: `Estimated reading · ${fmtMonthDay(p.d)}`,
@@ -314,6 +322,7 @@ function detectEvents(a: FuelAnalysis, readings: Reading[]): EnergyEvent[] {
       events.push({
         id: `${a.fuel}:quietrun:${a.daily[s].d}`,
         date: a.daily[s].d,
+        kind: 'run',
         sev: 'low',
         type: 'Quiet day',
         title: `${e - s + 1} near-zero days in a row`,

@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import type { Fuel, Hearth } from '../types'
 import type { HearthStore } from '../store'
 import { seriesPath } from '../lib/svg'
+import { answerOf } from '../lib/content'
 import { fmtDateNum, fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum, fmtTemp } from '../lib/format'
 import { FUEL_ICON } from '../model'
 import { EmptyState } from '../components/EmptyState'
@@ -126,7 +127,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
   const events = a.events
   const highCount = events.filter((e) => e.sev === 'high').length
   const questions = bundle.questions
-  const answered = questions.filter((q) => hearth.answers[`${hearth.fuel}:${q.id}`]?.length).length
+  const answered = questions.filter((q) => answerOf(q, hearth.fuel, hearth.answers, hearth.evMeta).length).length
   const qProg = `${answered} of ${questions.length}`
   const qProgW = questions.length ? Math.round((answered / questions.length) * 100) + '%' : '0%'
 

@@ -3,7 +3,7 @@
 // in onboarding — each collected fact changes what gets asked or suggested,
 // so nothing irrelevant is ever requested.
 
-import type { DayPoint, FuelAnalysis } from './analyze'
+import type { DayPoint, EnergyEvent, FuelAnalysis } from './analyze'
 import { quantile } from './stats'
 import { fmtDayShort, fmtMoney0, fmtMonthDay, hourLabel } from './format'
 import type { EvMetaEntry, Fuel, Profile } from '../types'
@@ -68,6 +68,78 @@ export interface QDef {
   text: string
   multi?: boolean
   opts: string[]
+  /** Set on a question about one flagged day. Its answer is stored as that
+   *  day's event tag (`evMeta`) rather than in `answers`; see answerOf. */
+  day?: {
+    date: string
+    kind: 'spike' | 'quiet'
+    sev: EnergyEvent['sev']
+    /** What the day cost against a normal one, e.g. "+$5.12". */
+    cost: string
+    detail: string
+    tip: string
+  }
+}
+
+/** A cause a flagged day could carry before these were questions: the old
+ *  dropdown's placeholder, which meant nothing was chosen. */
+const NO_CAUSE = 'What caused this?'
+
+/** A question's answer: its entry in `answers`, or for a flagged day, that
+ *  day's tag. */
+export function answerOf(
+  q: QDef,
+  fuel: Fuel,
+  answers: AnswerMap,
+  evMeta: Record<string, EvMetaEntry>,
+): string[] {
+  if (!q.day) return answers[`${fuel}:${q.id}`] ?? []
+  const tag = evMeta[`${fuel}:${q.day.date}`]
+  if (tag?.cause && tag.cause !== NO_CAUSE) return [tag.cause]
+  // A day could once be marked "I was away" with no cause at all.
+  return q.day.kind === 'quiet' && tag?.away ? ['Away all day'] : []
+}
+
+/** The tag that stores an answer to a flagged day's question. Only "Away all
+ *  day" marks the day away, which is what lets it measure standby load. */
+export function dayTag(q: QDef, value: string | null, prev: EvMetaEntry = {}): EvMetaEntry {
+  if (!value) return {}
+  return q.day?.kind === 'quiet' ? { cause: value, away: value === 'Away all day' } : { ...prev, cause: value }
+}
+
+/**
+ * Every flagged day becomes a question too, asked like the rest. A day that a
+ * question above already asks about is left out, as are estimated readings and
+ * quiet gas runs, which have nothing to ask. Newest first.
+ */
+function dayQuestions(a: FuelAnalysis, profile: Profile | null, covered: (string | undefined)[]): QDef[] {
+  const skip = new Set(covered)
+  const out: QDef[] = []
+  const days = a.events
+    .filter((e) => (e.kind === 'evening' || e.kind === 'high' || e.kind === 'quiet') && !skip.has(e.date))
+    .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
+  for (const e of days) {
+    if (out.some((q) => q.day?.date === e.date)) continue
+    const day = fmtDayShort(e.date)
+    const quiet = e.kind === 'quiet'
+    out.push({
+      id: `day-${e.date}`,
+      tag: e.type,
+      money: '',
+      text: quiet
+        ? `Were you away on ${day}?`
+        : e.kind === 'evening'
+          ? `What caused the evening spike on ${day}?`
+          : `What drove the high ${a.fuel === 'gas' ? 'gas use' : 'usage'} on ${day}?`,
+      opts: quiet
+        ? ['Yes, home', 'Away all day', 'Part of the day', 'Not sure']
+        : a.fuel === 'gas'
+          ? ['Guests', 'Laundry', 'Long showers', 'Cooking', 'Not sure']
+          : ['AC', 'Laundry', 'Cooking', 'Guests', ...(profile?.has_ev ? ['EV charging'] : []), 'Not sure'],
+      day: { date: e.date, kind: quiet ? 'quiet' : 'spike', sev: e.sev, cost: e.cost, detail: e.detail, tip: e.tip },
+    })
+  }
+  return out
 }
 
 interface SavingEst {
@@ -434,6 +506,7 @@ export function buildQuestions(
         opts: ['Yes, home', 'Away all day', 'Part of the day'],
       })
     }
+    qs.push(...dayQuestions(a, profile, [a.sharpest?.date, a.quietest?.date]))
   } else {
     const gasTotal = estimateSavings(a, profile, answers, evMeta)
     qs.push({
@@ -461,6 +534,7 @@ export function buildQuestions(
         opts: ['Guests over', 'Extra laundry', 'Long showers', 'Not sure'],
       })
     }
+    qs.push(...dayQuestions(a, profile, [a.gasSpike?.date]))
   }
   return qs
 }

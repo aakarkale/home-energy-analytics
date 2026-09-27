@@ -8,7 +8,6 @@ export type Fuel = 'electric' | 'gas'
 export type Metric = 'usage' | 'cost'
 export type Theme = 'dark' | 'light'
 export type Mode = 'demo' | 'live'
-export type EventFilter = 'All' | 'Spikes' | 'Quiet days' | 'High'
 export type ObTab = 'create' | 'signin'
 export type TempUnit = 'F' | 'C'
 
@@ -62,7 +61,6 @@ export interface Hearth {
   fuel: Fuel
   metric: Metric
   theme: Theme
-  filter: EventFilter
   ob: boolean
   obStep: number
 
@@ -110,7 +108,6 @@ export interface Hearth {
   go: (page: Page) => void
   setFuel: (fuel: Fuel) => void
   setMetric: (metric: Metric) => void
-  setFilter: (filter: EventFilter) => void
   toggleTheme: () => void
   setMode: (mode: Mode) => void
   /** Leaves the demo for the landing page. */
@@ -127,8 +124,8 @@ export interface Hearth {
   setOtherDraft: (key: string, value: string) => void
   addOther: (key: string, multi: boolean) => void
 
-  setCause: (fuel: Fuel, date: string, cause: string) => void
-  toggleAway: (fuel: Fuel, date: string) => void
+  /** Answers a question about a flagged day: stores that day's event tag. */
+  setDayTag: (fuel: Fuel, date: string, tag: EvMetaEntry) => void
   /** Files answers and event tags away from Calibrate, or brings them back. */
   setArchived: (change: Partial<Archive>, archived: boolean) => void
 }
