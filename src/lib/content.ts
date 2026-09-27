@@ -117,7 +117,7 @@ function estimateSavings(
         perYr: movable * a.tou.peakKwhPerDay * premium * 365,
         note: atPeak.length
           ? `${Math.round(movable * 100)}% of your ${a.tou.peakKwhPerDay.toFixed(1)} kWh average peak load, weighted by what you said runs then (${atPeak.join(', ')}), at the $${premium.toFixed(2)}/kWh premium your bill shows.`
-          : `40% of your ${a.tou.peakKwhPerDay.toFixed(1)} kWh average peak load moved off-peak, at the $${premium.toFixed(2)}/kWh premium your bill shows. Tell us what runs at peak in Activity to sharpen this.`,
+          : `40% of your ${a.tou.peakKwhPerDay.toFixed(1)} kWh average peak load moved off-peak, at the $${premium.toFixed(2)}/kWh premium your bill shows. Tell us what runs at peak in Calibrate to sharpen this.`,
       })
       // If they listed what runs at peak and AC was not on it, pre-cooling has
       // nothing to pre-empt.
@@ -178,7 +178,7 @@ function estimateSavings(
       // Unanswered, assume ~15% of standby is avoidable. Named devices give a
       // real figure: a fridge returns nothing, a desktop left on returns a lot.
       let share = 0.15
-      let basis = `15% of your ${baseline.toFixed(2)} kWh/hr standby baseline, priced at the off-peak rate. Tell us what runs around the clock in Activity to sharpen this.`
+      let basis = `15% of your ${baseline.toFixed(2)} kWh/hr standby baseline, priced at the off-peak rate. Tell us what runs around the clock in Calibrate to sharpen this.`
       if (named.length) {
         share = clamp(
           named.reduce((x, o) => x + (STANDBY_TRIM[o] ?? UNKNOWN_TRIM), 0),
@@ -344,7 +344,7 @@ export function buildInsights(
         color: 'rgb(41,149,255)',
         title: `${fmtMonthDay(a.quietest.date)} ran ${a.quietest.belowPct}% below normal`,
         chip: '',
-        body: 'Quiet days like this reveal your true baseline. Confirm whether you were away in Activity.',
+        body: 'Quiet days like this reveal your true baseline. Confirm whether you were away in Calibrate.',
       })
     }
   } else {

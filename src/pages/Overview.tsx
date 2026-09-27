@@ -372,13 +372,13 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
         </div>
 
         <button
-          onClick={() => hearth.go('activity')}
+          onClick={() => hearth.go('calibrate')}
           className="h-interactive card-btn press99"
           style={{ textAlign: 'left', ...card, padding: 20, cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', display: 'flex', flexDirection: 'column', gap: 10, color: 'var(--fg-1)' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>
-            <i className="ph ph-pulse" style={{ color: 'var(--accent-coral)', fontSize: 17 }} />
-            Activity
+            <i className="ph ph-target" style={{ color: 'var(--accent-coral)', fontSize: 17 }} />
+            Calibrate
           </div>
           <div style={{ fontSize: 13, color: 'var(--fg-2)', lineHeight: 1.5 }}>
             {events.length

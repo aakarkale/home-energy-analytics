@@ -41,11 +41,11 @@ export const NAV_PAGES: NavPage[] = [
     brief: "A thermostat schedule built from this week's forecast, so you cool before peak prices.",
   },
   {
-    id: 'activity',
-    label: 'Activity',
-    short: 'Activity',
-    icon: 'ph ph-pulse',
-    brief: 'Days that broke from your normal, plus quick questions that sharpen your tips.',
+    id: 'calibrate',
+    label: 'Calibrate',
+    short: 'Calibrate',
+    icon: 'ph ph-target',
+    brief: "Correct Hearth's guesses so the numbers match your real home.",
   },
 ]
 
@@ -54,7 +54,7 @@ export const PAGE_TITLES: Record<Page, string> = {
   energy: 'Energy',
   rates: 'Rates',
   playbook: 'AC Playbook',
-  activity: 'Activity',
+  calibrate: 'Calibrate',
   settings: 'Settings',
   account: 'Account',
 }
@@ -71,7 +71,7 @@ export const PAGE_TITLES: Record<Page, string> = {
 export const PER_FUEL_PAGES: Record<Page, boolean> = {
   overview: true,
   energy: true,
-  activity: true,
+  calibrate: true,
   rates: false,
   playbook: false,
   settings: false,

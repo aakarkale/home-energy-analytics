@@ -35,7 +35,7 @@ import { Overview } from './pages/Overview'
 import { Energy } from './pages/Energy'
 import { Rates } from './pages/Rates'
 import { Playbook } from './pages/Playbook'
-import { Activity } from './pages/Activity'
+import { Calibrate } from './pages/Calibrate'
 import { Settings } from './pages/Settings'
 import { Account } from './pages/Account'
 
@@ -180,6 +180,8 @@ export default function App() {
     }
     if (inApp) {
       if (!route.page && !route.authTab) navigate(PAGE_PATHS.overview, true)
+      // A screen reached by an old address moves to its current one.
+      else if (route.page && route.path !== PAGE_PATHS[route.page]) navigate(PAGE_PATHS[route.page], true)
     } else if (route.page) {
       // A deep link into the app without a session or data shows the front door.
       navigate(ROUTES.landing, true)
@@ -500,7 +502,7 @@ export default function App() {
               {page === 'energy' && <Energy hearth={hearth} />}
               {page === 'rates' && <Rates hearth={hearth} />}
               {page === 'playbook' && <Playbook hearth={hearth} />}
-              {page === 'activity' && <Activity hearth={hearth} />}
+              {page === 'calibrate' && <Calibrate hearth={hearth} />}
               {page === 'settings' && <Settings hearth={hearth} store={store} />}
               {page === 'account' && <Account hearth={hearth} store={store} />}
             </div>
