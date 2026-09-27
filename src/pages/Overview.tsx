@@ -7,6 +7,17 @@ import { fmtDateNum, fmtDayShort, fmtMoney, fmtMoney0, fmtMonthDay, fmtNum, fmtT
 import { FUEL_ICON } from '../model'
 import { EmptyState } from '../components/EmptyState'
 import { HoverChart, TempToggle } from '../components/chart'
+import { billCycles, CycleBills } from '../components/CycleBills'
+
+/** A billing-cycle marker: the accent, ringed off the line, with a soft glow. */
+const cycleDot: CSSProperties = {
+  flex: 'none',
+  width: 10,
+  height: 10,
+  borderRadius: 100,
+  background: 'var(--acc,#ffdd55)',
+  boxShadow: '0 0 0 2px var(--bg-2), 0 0 0 6px color-mix(in srgb, var(--acc,#ffdd55) 26%, transparent)',
+}
 
 const card: CSSProperties = {
   background: 'var(--bg-2)',
@@ -93,35 +104,55 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           sub: 'Set your billing cycle in setup',
           spark: false,
         },
-    elec
-      ? a.alwaysOn
-        ? {
-            label: 'Always-on load',
-            range: dataRange,
-            value: a.alwaysOn.kwhPerHr.toFixed(2),
-            unit: 'kWh/hr',
-            sub: `≈ ${fmtMoney0(a.alwaysOn.monthlyCost)}/mo of standby`,
-            spark: false,
-          }
-        : {
-            label: 'Biggest day',
-            range: dataRange,
-            value: fmtNum(Math.max(...usage), 0),
-            unit: a.unit,
-            sub: 'Hourly exports unlock always-on load',
-            spark: false,
-          }
-      : {
-          label: 'Active gas days',
-          range: dataRange,
-          value: String(a.activeGas?.days ?? 0),
-          unit: `of ${a.activeGas?.of ?? a.days}`,
-          sub: `≈ ${(a.activeGas?.avgWhenOn ?? 0).toFixed(2)} therms when on`,
-          spark: false,
-        },
+    // Bills by cycle takes the fourth tile once the cycles are known.
+    ...(billCycles(a).length
+      ? []
+      : [
+          elec
+            ? a.alwaysOn
+              ? {
+                  label: 'Always-on load',
+                  range: dataRange,
+                  value: a.alwaysOn.kwhPerHr.toFixed(2),
+                  unit: 'kWh/hr',
+                  sub: `≈ ${fmtMoney0(a.alwaysOn.monthlyCost)}/mo of standby`,
+                  spark: false,
+                }
+              : {
+                  label: 'Biggest day',
+                  range: dataRange,
+                  value: fmtNum(Math.max(...usage), 0),
+                  unit: a.unit,
+                  sub: 'Hourly exports unlock always-on load',
+                  spark: false,
+                }
+            : {
+                label: 'Active gas days',
+                range: dataRange,
+                value: String(a.activeGas?.days ?? 0),
+                unit: `of ${a.activeGas?.of ?? a.days}`,
+                sub: `≈ ${(a.activeGas?.avgWhenOn ?? 0).toFixed(2)} therms when on`,
+                spark: false,
+              },
+        ]),
   ]
 
   const mini = seriesPath(usage, 720, 150, 4)
+  // Billing cycles on the daily chart: a dot on the first day of each cycle,
+  // and on the last day of the final one once the readings reach it.
+  const dayAt = new Map(a.daily.map((d, i) => [d.d, i]))
+  const cycleDots: { i: number; end: boolean }[] = []
+  a.cycles.forEach((c, ci) => {
+    const s = dayAt.get(c.start)
+    if (s !== undefined) cycleDots.push({ i: s, end: false })
+    const e = ci === a.cycles.length - 1 && c.endsInData ? dayAt.get(c.end) : undefined
+    if (e !== undefined) cycleDots.push({ i: e, end: true })
+  })
+  /** A tooltip note for a day that opens or closes a cycle. */
+  const cycleNote = (d: string) => {
+    const c = a.cycles.find((x) => x.start === d || x.end === d)
+    return c ? { value: c.start === d ? 'Cycle starts' : 'Cycle ends', label: `${fmtDateNum(c.start)} – ${fmtDateNum(c.end)}` } : null
+  }
   const metricLabel =
     hearth.metric === 'usage' ? (elec ? 'usage (kWh)' : 'usage (therms)') : 'cost ($)'
   const events = a.events
@@ -197,6 +228,7 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             )}
           </div>
         ))}
+        <CycleBills a={a} acc={acc} card={card} style={{ animationDelay: `${kpis.length * 60}ms` }} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 12 }}>
@@ -291,6 +323,12 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
             Open Energy <i className="ph ph-caret-right" style={{ fontSize: 11 }} />
           </button>
         </div>
+        {cycleDots.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: 'var(--fg-3)', marginTop: -6, paddingLeft: 6 }}>
+            <span style={cycleDot} />
+            {cycleDots.some((d) => d.end) ? 'Billing cycle start/end' : 'Billing cycle starts'}
+          </div>
+        )}
         <HoverChart
           key={`ov-${hearth.fuel}-${hearth.metric}`}
           count={a.daily.length}
@@ -298,26 +336,48 @@ export function Overview({ hearth, store }: { hearth: Hearth; store: HearthStore
           label={`Daily ${metricLabel}. Use arrow keys to step through days.`}
           tip={(i) => {
             const d = a.daily[i]
+            const note = cycleNote(d.d)
             return {
               title: fmtMonthDay(d.d),
               rows: [
                 { value: `${fmtNum(d.usage, 1)} ${a.unit}`, label: 'usage', color: acc },
                 { value: fmtMoney(d.cost), label: 'cost', color: 'rgb(174,134,232)' },
+                ...(note ? [note] : []),
               ],
             }
           }}
         >
           {(hover) => (
-            <svg viewBox="0 0 720 150" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
-              <path className="h-area" d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
-              <path className="h-draw" pathLength={1} d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
-              {hover !== null && (
-                <>
-                  <line x1={mini.pts[hover][0]} y1={4} x2={mini.pts[hover][0]} y2={146} stroke="var(--fg-5)" strokeWidth="1" strokeDasharray="3 3" />
-                  <circle cx={mini.pts[hover][0]} cy={mini.pts[hover][1]} r="4" fill="var(--acc,#ffdd55)" stroke="var(--bg-2)" strokeWidth="2" />
-                </>
-              )}
-            </svg>
+            <div style={{ position: 'relative' }}>
+              <svg viewBox="0 0 720 150" style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="none">
+                <path className="h-area" d={mini.area} fill="var(--accSoft,rgba(255,221,85,.13))" />
+                <path className="h-draw" pathLength={1} d={mini.line} fill="none" stroke="var(--acc,#ffdd55)" strokeWidth="1.75" />
+                {hover !== null && (
+                  <>
+                    <line x1={mini.pts[hover][0]} y1={4} x2={mini.pts[hover][0]} y2={146} stroke="var(--fg-5)" strokeWidth="1" strokeDasharray="3 3" />
+                    <circle cx={mini.pts[hover][0]} cy={mini.pts[hover][1]} r="4" fill="var(--acc,#ffdd55)" stroke="var(--bg-2)" strokeWidth="2" />
+                  </>
+                )}
+              </svg>
+              {/* The plot scales with its width; the dots should not, or a phone
+                  shrinks them to specks. Placed by the same coordinates instead. */}
+              {cycleDots.map(({ i, end }, k) => (
+                <span
+                  key={`${i}-${end}`}
+                  className="h-dot"
+                  aria-hidden="true"
+                  style={{
+                    ...cycleDot,
+                    position: 'absolute',
+                    left: `${(mini.pts[i][0] / 720) * 100}%`,
+                    top: `${(mini.pts[i][1] / 150) * 100}%`,
+                    translate: '-50% -50%',
+                    pointerEvents: 'none',
+                    animationDelay: `${600 + k * 80}ms`,
+                  }}
+                />
+              ))}
+            </div>
           )}
         </HoverChart>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--fg-4)' }}>
