@@ -29,6 +29,16 @@ export interface EvMetaEntry {
   away?: boolean
 }
 
+/**
+ * What has been filed away from Calibrate: answers keyed like `answers`
+ * (`fuel:questionId`) and event tags keyed like `evMeta` (`fuel:date`). Filing
+ * only tidies the page; archived answers and tags keep refining every estimate.
+ */
+export interface Archive {
+  answers: string[]
+  events: string[]
+}
+
 /** Everything computed for one fuel's dashboard. */
 export interface FuelBundle {
   analysis: FuelAnalysis
@@ -95,6 +105,7 @@ export interface Hearth {
   answers: Record<string, string[]>
   otherDraft: Record<string, string>
   evMeta: Record<string, EvMetaEntry>
+  archive: Archive
 
   go: (page: Page) => void
   setFuel: (fuel: Fuel) => void
@@ -118,4 +129,6 @@ export interface Hearth {
 
   setCause: (fuel: Fuel, date: string, cause: string) => void
   toggleAway: (fuel: Fuel, date: string) => void
+  /** Files answers and event tags away from Calibrate, or brings them back. */
+  setArchived: (change: Partial<Archive>, archived: boolean) => void
 }
