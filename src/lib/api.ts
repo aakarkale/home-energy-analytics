@@ -215,80 +215,173 @@ export async function deleteUpload(id: string): Promise<void> {
   if (error) console.warn('deleteUpload failed:', error.message)
 }
 
-/** All answers keyed `${fuel}:${question_id}`. */
-export async function fetchAnswers(userId: string): Promise<Record<string, string[]>> {
-  const { data } = await supabase.from('answers').select('fuel, question_id, value').eq('user_id', userId)
-  const out: Record<string, string[]> = {}
-  for (const row of data ?? []) {
-    if (Array.isArray(row.value)) out[`${row.fuel}:${row.question_id}`] = row.value
+/**
+ * Answer and annotation writes run one at a time, in the order they were made.
+ * Otherwise a quick change of mind could land before the change it replaces, or
+ * an archive could reach the server before the answer it files.
+ */
+let writeQueue: Promise<unknown> = Promise.resolve()
+function inOrder<T>(write: () => Promise<T>): Promise<T> {
+  const next = writeQueue.then(write)
+  writeQueue = next.catch(() => {})
+  return next
+}
+
+/** Splits `fuel:rest` keys by fuel. */
+function byFuel(keys: string[]): Map<Fuel, string[]> {
+  const out = new Map<Fuel, string[]>()
+  for (const key of keys) {
+    const i = key.indexOf(':')
+    const fuel = key.slice(0, i) as Fuel
+    out.set(fuel, [...(out.get(fuel) ?? []), key.slice(i + 1)])
   }
   return out
 }
 
-export async function saveAnswer(
+/** All answers keyed `${fuel}:${question_id}`, and which of them are archived. */
+export async function fetchAnswers(
+  userId: string,
+): Promise<{ answers: Record<string, string[]>; archived: string[] }> {
+  const { data } = await supabase
+    .from('answers')
+    .select('fuel, question_id, value, archived_at')
+    .eq('user_id', userId)
+  const answers: Record<string, string[]> = {}
+  const archived: string[] = []
+  for (const row of data ?? []) {
+    if (!Array.isArray(row.value)) continue
+    const key = `${row.fuel}:${row.question_id}`
+    answers[key] = row.value
+    if (row.archived_at) archived.push(key)
+  }
+  return { answers, archived }
+}
+
+export function saveAnswer(
   userId: string,
   fuel: Fuel,
   questionId: string,
   value: string[] | null,
 ): Promise<void> {
-  if (value === null) {
-    await supabase
+  return inOrder(async () => {
+    if (value === null) {
+      await supabase
+        .from('answers')
+        .delete()
+        .eq('user_id', userId)
+        .eq('fuel', fuel)
+        .eq('question_id', questionId)
+      return
+    }
+    // archived_at is left out, so changing an answer never files or unfiles it.
+    const { error } = await supabase
       .from('answers')
-      .delete()
-      .eq('user_id', userId)
-      .eq('fuel', fuel)
-      .eq('question_id', questionId)
-    return
-  }
-  const { error } = await supabase
-    .from('answers')
-    .upsert(
-      { user_id: userId, fuel, question_id: questionId, value, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,fuel,question_id' },
-    )
-  if (error) console.warn('saveAnswer failed:', error.message)
+      .upsert(
+        { user_id: userId, fuel, question_id: questionId, value, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,fuel,question_id' },
+      )
+    if (error) console.warn('saveAnswer failed:', error.message)
+  })
 }
 
-/** Event annotations keyed `${fuel}:${date}`. */
-export async function fetchAnnotations(
-  uploadIds: Partial<Record<Fuel, string>>,
-): Promise<Record<string, { away?: boolean; cause?: string }>> {
-  const ids = Object.values(uploadIds).filter(Boolean) as string[]
-  if (!ids.length) return {}
+/** Files answers (keys `fuel:questionId`) away from Calibrate, or brings them back. */
+export function setAnswersArchived(userId: string, keys: string[], archived: boolean): Promise<void> {
+  return inOrder(async () => {
+    const archived_at = archived ? new Date().toISOString() : null
+    for (const [fuel, ids] of byFuel(keys)) {
+      const { error } = await supabase
+        .from('answers')
+        .update({ archived_at })
+        .eq('user_id', userId)
+        .eq('fuel', fuel)
+        .in('question_id', ids)
+      if (error) console.warn('setAnswersArchived failed:', error.message)
+    }
+  })
+}
+
+export interface AnnotationRow {
+  upload_id: string
+  date_key: string
+  away: boolean | null
+  cause: string | null
+  archived_at: string | null
+}
+
+/** Every event annotation on the account. Fetched by user rather than by upload
+ *  so it can load alongside the uploads instead of after them. */
+export async function fetchAnnotations(userId: string): Promise<AnnotationRow[]> {
   const { data } = await supabase
     .from('annotations')
-    .select('upload_id, date_key, away, cause')
-    .in('upload_id', ids)
-  const byId = new Map(Object.entries(uploadIds).map(([fuel, id]) => [id, fuel]))
-  const out: Record<string, { away?: boolean; cause?: string }> = {}
-  for (const row of data ?? []) {
-    const fuel = byId.get(row.upload_id)
-    if (!fuel) continue
-    out[`${fuel}:${row.date_key}`] = { away: !!row.away, cause: row.cause ?? undefined }
-  }
-  return out
+    .select('upload_id, date_key, away, cause, archived_at')
+    .eq('user_id', userId)
+  return data ?? []
 }
 
-export async function saveAnnotation(
+/** Annotations on the given uploads keyed `${fuel}:${date}`, and which of them
+ *  are archived. Rows left over from a replaced upload are dropped. */
+export function annotationsByFuel(
+  rows: AnnotationRow[],
+  uploadIds: Partial<Record<Fuel, string>>,
+): { meta: Record<string, { away?: boolean; cause?: string }>; archived: string[] } {
+  const byId = new Map(Object.entries(uploadIds).map(([fuel, id]) => [id, fuel]))
+  const meta: Record<string, { away?: boolean; cause?: string }> = {}
+  const archived: string[] = []
+  for (const row of rows) {
+    const fuel = byId.get(row.upload_id)
+    if (!fuel) continue
+    const key = `${fuel}:${row.date_key}`
+    meta[key] = { away: !!row.away, cause: row.cause ?? undefined }
+    if (row.archived_at) archived.push(key)
+  }
+  return { meta, archived }
+}
+
+export function saveAnnotation(
   userId: string,
   uploadId: string,
   date: string,
   meta: { away?: boolean; cause?: string },
 ): Promise<void> {
-  const { error } = await supabase
-    .from('annotations')
-    .upsert(
-      {
-        user_id: userId,
-        upload_id: uploadId,
-        date_key: date,
-        away: !!meta.away,
-        cause: meta.cause ?? null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,upload_id,date_key' },
-    )
-  if (error) console.warn('saveAnnotation failed:', error.message)
+  return inOrder(async () => {
+    const { error } = await supabase
+      .from('annotations')
+      .upsert(
+        {
+          user_id: userId,
+          upload_id: uploadId,
+          date_key: date,
+          away: !!meta.away,
+          cause: meta.cause ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,upload_id,date_key' },
+      )
+    if (error) console.warn('saveAnnotation failed:', error.message)
+  })
+}
+
+/** Files event tags (keys `fuel:date`) away from Calibrate, or brings them back. */
+export function setAnnotationsArchived(
+  userId: string,
+  uploadIds: Partial<Record<Fuel, string>>,
+  keys: string[],
+  archived: boolean,
+): Promise<void> {
+  return inOrder(async () => {
+    const archived_at = archived ? new Date().toISOString() : null
+    for (const [fuel, dates] of byFuel(keys)) {
+      const uploadId = uploadIds[fuel]
+      if (!uploadId) continue
+      const { error } = await supabase
+        .from('annotations')
+        .update({ archived_at })
+        .eq('user_id', userId)
+        .eq('upload_id', uploadId)
+        .in('date_key', dates)
+      if (error) console.warn('setAnnotationsArchived failed:', error.message)
+    }
+  })
 }
 
 /**

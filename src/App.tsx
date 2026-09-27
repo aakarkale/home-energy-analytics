@@ -307,6 +307,7 @@ export default function App() {
     answers: store.answers,
     otherDraft,
     evMeta: store.evMeta,
+    archive: store.archive,
 
     go: (p) => navigate(PAGE_PATHS[p]),
     setFuel: (f) => {
@@ -380,6 +381,7 @@ export default function App() {
       const meta = store.evMeta[`${f}:${date}`] || {}
       store.setEvMeta(f, date, { ...meta, away: !meta.away })
     },
+    setArchived: store.setArchived,
   }
 
   const enterApp = (kind: 'create' | 'signin' | 'demo') => {

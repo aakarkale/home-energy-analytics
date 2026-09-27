@@ -52,6 +52,11 @@ How it works here:
 - **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
   `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
   account (under 14 days old) lands on that page.
+- **Calibrate's archive only tidies the page.** Archived answers and event tags
+  keep refining every estimate. Accounts keep it as `archived_at` on `answers` and
+  `annotations`; guests and the demo in the browser. Answer and annotation writes
+  share one ordered queue (`inOrder`, `src/lib/api.ts`), so an archive never
+  overtakes the answer it files.
 
 ## Commands
 

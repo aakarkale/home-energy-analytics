@@ -6,7 +6,7 @@
 //           in, uploads/answers/annotations synced to the user's account.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { EvMetaEntry, Fuel, Mode, Profile } from './types'
+import type { Archive, EvMetaEntry, Fuel, Mode, Profile } from './types'
 import * as api from './lib/api'
 import type { Session, UploadRecord } from './lib/api'
 import { parseGreenButtonCsv, type ParsedUpload } from './lib/parse'
@@ -21,6 +21,18 @@ const DEMO_EVMETA_KEY = 'hearth-demo-evmeta'
 const GUEST_ANSWERS_KEY = 'hearth-guest-answers'
 const GUEST_EVMETA_KEY = 'hearth-guest-evmeta'
 const GUEST_PROFILE_KEY = 'hearth-guest-profile'
+const DEMO_ARCHIVE_KEY = 'hearth-demo-archive'
+const GUEST_ARCHIVE_KEY = 'hearth-guest-archive'
+
+const NO_ARCHIVE: Archive = { answers: [], events: [] }
+
+function readArchive(key: string): Archive {
+  const a = readJson<Partial<Archive> | null>(key, null)
+  return {
+    answers: Array.isArray(a?.answers) ? a.answers : [],
+    events: Array.isArray(a?.events) ? a.events : [],
+  }
+}
 
 const EMPTY_PROFILE: Profile = {
   display_name: null,
@@ -93,6 +105,7 @@ export interface HearthStore {
   hasMyData: boolean
   answers: Record<string, string[]>
   evMeta: Record<string, EvMetaEntry>
+  archive: Archive
   forecast: ForecastDay[] | null
   /** Outdoor °F per hour from midnight local today. */
   forecastHours: number[] | null
@@ -135,6 +148,8 @@ export interface HearthStore {
   removeMyUpload: (fuel: Fuel) => Promise<void>
   setAnswerValue: (key: string, vals: string[] | null) => void
   setEvMeta: (fuel: Fuel, date: string, meta: EvMetaEntry) => void
+  /** Files answers and event tags away from Calibrate, or brings them back. */
+  setArchived: (change: Partial<Archive>, archived: boolean) => void
 }
 
 export function useHearthStore(): HearthStore {
@@ -167,6 +182,9 @@ export function useHearthStore(): HearthStore {
   const [guestEvMeta, setGuestEvMeta] = useState<Record<string, EvMetaEntry>>(() =>
     readJson(GUEST_EVMETA_KEY, {}),
   )
+  const [accountArchive, setAccountArchive] = useState<Archive>(NO_ARCHIVE)
+  const [demoArchive, setDemoArchive] = useState<Archive>(() => readArchive(DEMO_ARCHIVE_KEY))
+  const [guestArchive, setGuestArchive] = useState<Archive>(() => readArchive(GUEST_ARCHIVE_KEY))
   const [forecast, setForecast] = useState<ForecastDay[] | null>(null)
   const [forecastHours, setForecastHours] = useState<number[] | null>(null)
   const [forecastAt, setForecastAt] = useState<number | null>(null)
@@ -217,6 +235,7 @@ export function useHearthStore(): HearthStore {
       setAccountUploads({})
       setAccountAnswers({})
       setAccountEvMeta({})
+      setAccountArchive(NO_ARCHIVE)
       return
     }
     if (loadedFor.current === userId) return
@@ -225,24 +244,28 @@ export function useHearthStore(): HearthStore {
     let cancelled = false
     let done = false
     ;(async () => {
-      const [prof, uploads, answers, isOnboarded] = await Promise.all([
+      const [prof, uploads, answers, isOnboarded, notes] = await Promise.all([
         api.fetchProfile(userId),
         api.fetchUploads(userId),
         api.fetchAnswers(userId),
         api.fetchOnboarded(userId),
+        api.fetchAnnotations(userId),
       ])
       if (cancelled) return
-      setProfile(prof)
-      setOnboarded(isOnboarded)
-      setAccountUploads(uploads)
-      setAccountLoaded(true)
-      setAccountAnswers(answers)
       const ids: Partial<Record<Fuel, string>> = {}
       for (const [fuel, rec] of Object.entries(uploads)) {
         if (rec?.id) ids[fuel as Fuel] = rec.id
       }
-      const meta = await api.fetchAnnotations(ids)
-      if (!cancelled) setAccountEvMeta(meta)
+      const tags = api.annotationsByFuel(notes, ids)
+      // One render for all of it, archive included, so nothing archived ever
+      // shows on the page while the rest loads.
+      setProfile(prof)
+      setOnboarded(isOnboarded)
+      setAccountUploads(uploads)
+      setAccountLoaded(true)
+      setAccountAnswers(answers.answers)
+      setAccountEvMeta(tags.meta)
+      setAccountArchive({ answers: answers.archived, events: tags.archived })
       // First sign-in on this device with data: land on "my data".
       if (Object.keys(uploads).length && readJson<string | null>(MODE_KEY, null) === null) {
         setModeState('live')
@@ -345,6 +368,23 @@ export function useHearthStore(): HearthStore {
   const uploads = mode === 'demo' ? demoUploadsMemo : myUploads
   const answers = mode === 'demo' ? demoAnswers : isAuthed ? accountAnswers : guestAnswers
   const evMeta = mode === 'demo' ? demoEvMeta : isAuthed ? accountEvMeta : guestEvMeta
+  const archive = mode === 'demo' ? demoArchive : isAuthed ? accountArchive : guestArchive
+
+  /** Applies a change to this mode's archive, persisting it where the browser
+   *  keeps it (an account's lives with its rows, see setArchived). */
+  const updateArchive = useCallback(
+    (apply: (prev: Archive) => Archive) => {
+      const local = (key: string) => (prev: Archive) => {
+        const next = apply(prev)
+        if (next !== prev) writeJson(key, next)
+        return next
+      }
+      if (mode === 'demo') setDemoArchive(local(DEMO_ARCHIVE_KEY))
+      else if (session) setAccountArchive(apply)
+      else setGuestArchive(local(GUEST_ARCHIVE_KEY))
+    },
+    [mode, session],
+  )
 
   const setAnswerValue = useCallback(
     (key: string, vals: string[] | null) => {
@@ -353,6 +393,12 @@ export function useHearthStore(): HearthStore {
         if (vals === null || vals.length === 0) delete next[key]
         else next[key] = vals
         return next
+      }
+      // A cleared answer leaves nothing to file: its question is open again.
+      if (!vals?.length) {
+        updateArchive((prev) =>
+          prev.answers.includes(key) ? { ...prev, answers: prev.answers.filter((k) => k !== key) } : prev,
+        )
       }
       if (mode === 'demo') {
         setDemoAnswers((prev) => {
@@ -372,7 +418,7 @@ export function useHearthStore(): HearthStore {
         })
       }
     },
-    [mode, session],
+    [mode, session, updateArchive],
   )
 
   const setEvMeta = useCallback(
@@ -398,6 +444,32 @@ export function useHearthStore(): HearthStore {
       }
     },
     [mode, session, accountUploads],
+  )
+
+  const setArchived = useCallback(
+    (change: Partial<Archive>, archived: boolean) => {
+      updateArchive((prev) => {
+        const next = { ...prev }
+        for (const kind of ['answers', 'events'] as const) {
+          const keys = change[kind]
+          if (!keys?.length) continue
+          const rest = prev[kind].filter((k) => !keys.includes(k))
+          next[kind] = archived ? [...rest, ...keys] : rest
+        }
+        return next
+      })
+      if (mode === 'demo' || !session) return
+      const uid = session.user.id
+      if (change.answers?.length) void api.setAnswersArchived(uid, change.answers, archived)
+      if (change.events?.length) {
+        const ids: Partial<Record<Fuel, string>> = {}
+        for (const [fuel, rec] of Object.entries(accountUploads)) {
+          if (rec?.id) ids[fuel as Fuel] = rec.id
+        }
+        void api.setAnnotationsArchived(uid, ids, change.events, archived)
+      }
+    },
+    [mode, session, accountUploads, updateArchive],
   )
 
   const saveProfilePatch = useCallback(
@@ -520,6 +592,7 @@ export function useHearthStore(): HearthStore {
     setAccountUploads({})
     setAccountAnswers({})
     setAccountEvMeta({})
+    setAccountArchive(NO_ARCHIVE)
     setOnboarded(false)
     setProfile((p) => ({
       ...p,
@@ -539,10 +612,12 @@ export function useHearthStore(): HearthStore {
     setGuestUploads({})
     setGuestAnswers({})
     setGuestEvMeta({})
+    setGuestArchive(NO_ARCHIVE)
     setProfile(EMPTY_PROFILE)
     persistGuestUploads({})
     writeJson(GUEST_ANSWERS_KEY, {})
     writeJson(GUEST_EVMETA_KEY, {})
+    writeJson(GUEST_ARCHIVE_KEY, NO_ARCHIVE)
     writeJson(GUEST_PROFILE_KEY, EMPTY_PROFILE)
   }, [])
 
@@ -571,6 +646,7 @@ export function useHearthStore(): HearthStore {
     hasMyData: Object.keys(myUploads).length > 0,
     answers,
     evMeta,
+    archive,
     forecast,
     forecastHours,
     forecastAt,
@@ -593,5 +669,6 @@ export function useHearthStore(): HearthStore {
     removeMyUpload,
     setAnswerValue,
     setEvMeta,
+    setArchived,
   }
 }
