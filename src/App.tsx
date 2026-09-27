@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { EventFilter, Fuel, FuelBundle, Hearth, Metric, ObTab, Page, TempUnit, Theme } from './types'
 import { useMediaQuery } from './hooks'
 import { useHearthStore } from './store'
 import { analyzeFuel } from './lib/analyze'
+import { emailLanding } from './lib/api'
 import { buildRates } from './lib/rates'
 import {
   buildInsights,
@@ -185,6 +186,19 @@ export default function App() {
     }
   }, [store.authReady, store.recovering, inApp, route.page, route.authTab, route.isReset])
 
+  // An email link lands on sign-in, which says what became of it. One that
+  // finds its visitor already signed in has nothing to explain, so it opens
+  // their dashboard instead. Once per page load, and before paint, so the
+  // dialog never flashes.
+  const emailLandingSettled = useRef(false)
+  useLayoutEffect(() => {
+    if (!store.authReady || emailLandingSettled.current) return
+    emailLandingSettled.current = true
+    if (!emailLanding || !store.session) return
+    setOb(false)
+    navigate(PAGE_PATHS.overview, true)
+  }, [store.authReady, store.session])
+
   useDocumentTitle(
     inApp && route.page
       ? `${PAGE_TITLE[route.page]} · ${SITE_NAME}`
@@ -344,6 +358,8 @@ export default function App() {
     },
     closeOb: () => {
       setOb(false)
+      // An email link's note has been seen once the dialog closes.
+      store.clearEmailNotice()
       if (locate(window.location.pathname).authTab) navigate(ROUTES.landing, true)
     },
     obNext: () => setObStep((s) => Math.min(3, s + 1)),

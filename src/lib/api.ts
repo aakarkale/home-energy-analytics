@@ -7,8 +7,81 @@ import { parseGreenButtonCsv, type ParsedUpload } from './parse'
 import { ROUTES } from './routes'
 import type { Fuel, Profile } from '../types'
 
+/** What sign-in should say about an email link the visitor just followed. */
+export type EmailNotice = { kind: 'confirmed'; email: string | null } | { kind: 'link-spent' }
+
+/** The session a confirmation link carried, held only until it is revoked. */
+let landingToken: string | null = null
+
+/**
+ * Reads what an email link brought this page load, before the client below can
+ * see the address. A confirmation link arrives carrying the new account's
+ * session and `type=signup`; one already used, or expired, arrives with an
+ * error instead (confirmation links work once).
+ */
+function readEmailLanding(): EmailNotice | null {
+  if (typeof window === 'undefined') return null
+  const { pathname, search, hash: rawHash } = window.location
+  const hash = new URLSearchParams(rawHash.replace(/^#/, ''))
+  const token = hash.get('access_token')
+  const type = hash.get('type')
+  const confirmed = !!token && (type === 'signup' || type === 'email')
+  // A spent password-reset link lands on its own page and is not this.
+  const spent = !confirmed && !!hash.get('error_code') && pathname !== ROUTES.resetPassword
+  if (!confirmed && !spent) return null
+  // Sign-in explains either one, so both land there, links sent before it was
+  // their target included. The hash goes in the same replace: Hearth asks
+  // people to sign in themselves once confirmed, so the link's session is
+  // never used, and its token never lingers in the address bar or history.
+  window.history.replaceState(window.history.state, '', ROUTES.signIn + search)
+  if (!confirmed) return { kind: 'link-spent' }
+  landingToken = token
+  return { kind: 'confirmed', email: tokenEmail(token) }
+}
+
+/** The address an access token was issued to: its `email` claim. */
+function tokenEmail(token: string): string | null {
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+    const { email } = JSON.parse(new TextDecoder().decode(bytes))
+    return typeof email === 'string' && email ? email : null
+  } catch {
+    return null
+  }
+}
+
+export const emailLanding = readEmailLanding()
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
 export type { Session }
+
+let landingSettled = emailLanding?.kind !== 'confirmed'
+let landingSettle: Promise<void> | null = null
+
+/** True until a confirmation landing has cleared any other account away. */
+export const settlingEmailLanding = () => !landingSettled
+
+/**
+ * Leaves sign-in open for the address a confirmation link just confirmed. The
+ * link's own session is revoked unused, and any other account signed in on this
+ * browser is signed out, as the link would have replaced it anyway. Runs once
+ * however often it is called.
+ */
+export function settleEmailLanding(): Promise<void> {
+  landingSettle ??= (async () => {
+    if (landingSettled) return
+    if (landingToken) {
+      // Nothing waits on the server tidying up.
+      void supabase.auth.admin.signOut(landingToken, 'local').catch(() => {})
+      landingToken = null
+    }
+    const { data } = await supabase.auth.getSession()
+    if (data.session) await supabase.auth.signOut({ scope: 'local' })
+    landingSettled = true
+  })()
+  return landingSettle
+}
 
 export interface UploadRecord {
   id: string | null
@@ -37,10 +110,11 @@ export async function signUp(
     password,
     options: {
       data: { display_name: name },
-      // Confirmation links come back to the origin the user signed up on
-      // (production, preview, or localhost) instead of the project-wide
-      // Site URL: the origin must be in the auth Redirect URLs allow-list.
-      emailRedirectTo: window.location.origin,
+      // Confirmation links come back to sign-in on the origin the user signed
+      // up on (production, preview or localhost), which then says the address
+      // is confirmed. A full path, not a bare origin: see requestPasswordReset
+      // for why only a path matches the allow-list's `/**` entries.
+      emailRedirectTo: window.location.origin + ROUTES.signIn,
     },
   })
   if (error) return { error: error.message }

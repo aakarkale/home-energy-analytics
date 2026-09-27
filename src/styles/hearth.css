@@ -89,6 +89,27 @@ select:focus-visible, input:focus-visible, button:focus-visible,
 .chip:hover { border-color: var(--fg-5) !important; }
 .dropzone:hover { border-color: var(--acc, #ffdd55) !important; background: var(--bg-3) !important; }
 
+/* Email confirmed: the banner rises in, the seal pops, a ring pulses out and a
+   burst of confetti clears in just over a second. Reduced motion keeps the
+   banner and drops the flourish. */
+@keyframes h-confetti {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(0deg) scale(0.3); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--spin)) scale(1); }
+}
+@keyframes h-ring { from { opacity: 0.7; transform: scale(1); } to { opacity: 0; transform: scale(2.3); } }
+.h-confirm { animation: h-fade-up 480ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.h-confirm-badge { animation: h-pop 460ms 140ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.h-confirm-ring { opacity: 0; animation: h-ring 900ms 260ms ease-out forwards; }
+.h-confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+  animation: h-confetti 1000ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Exit demo is the demo's one way out, so it is highlighted in red. The tints
    come from --accent-red, which the light theme deepens for contrast. */
 .exit-demo {
@@ -163,9 +184,10 @@ select:focus-visible, input:focus-visible, button:focus-visible,
 
 @media (prefers-reduced-motion: reduce) {
   .h-draw, .h-area, .h-wipe, .h-pop, .h-spin, .h-fade-up, .h-grow, .h-tip,
-  .h-pagetip-right, .h-pagetip-top, .h-pagetip-out {
+  .h-pagetip-right, .h-pagetip-top, .h-pagetip-out, .h-confirm, .h-confirm-badge {
     animation: none !important;
   }
+  .h-confirm-ring, .h-confetti { display: none !important; }
   .h-draw { stroke-dasharray: none !important; }
   .h-meter { transition: none !important; }
   .h-cell:hover, .h-cell.h-cell-on { transform: none; }

@@ -7,6 +7,7 @@ import { mergeUploads, reviewUpload, type UploadChoice, type UploadReview } from
 import { fmtDateNum, fmtMoney0 } from '../lib/format'
 import { FUEL_ICON } from '../model'
 import { needsConfirmation, UploadReviewCard } from './UploadReview'
+import { EmailLinkNotice } from './EmailLinkNotice'
 
 const OB_TITLES = ['Welcome to Hearth', 'Your home', 'Your data', 'Billing cycle']
 
@@ -108,9 +109,11 @@ export function Onboarding({
 }) {
   const { obStep } = hearth
 
+  // Arriving from a confirmation link, the address is already known.
+  const confirmedEmail = store.emailNotice?.kind === 'confirmed' ? store.emailNotice.email : null
   const [tab, setTab] = useState<ObTab>(initialTab)
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(confirmedEmail ?? '')
   const [password, setPassword] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
@@ -241,6 +244,8 @@ export function Onboarding({
     setAuthError(null)
     setNotice(null)
     if (tab === 'create') {
+      // A new account makes an earlier confirmation beside the point.
+      store.clearEmailNotice()
       const res = await store.signUp(name.trim(), email.trim(), password)
       setAuthBusy(false)
       if (res.error) setAuthError(res.error)
@@ -285,7 +290,10 @@ export function Onboarding({
     const res = await store.requestPasswordReset(email.trim())
     setAuthBusy(false)
     if (res.error) setAuthError(res.error)
-    else setNotice(`Reset link sent to ${email.trim()}. Open it here to set a new password.`)
+    else {
+      store.clearEmailNotice()
+      setNotice(`Reset link sent to ${email.trim()}. Open it here to set a new password.`)
+    }
   }
 
   async function submitNewPassword() {
@@ -471,10 +479,14 @@ export function Onboarding({
 
         {!store.recovering && obStep === 0 && !hearth.isAuthed && (
           <>
-            <div style={noteStyle}>
-              An account keeps your data and answers synced across devices. Or explore the demo first,
-              no sign-up needed.
-            </div>
+            {tab === 'signin' && store.emailNotice ? (
+              <EmailLinkNotice notice={store.emailNotice} />
+            ) : (
+              <div style={noteStyle}>
+                An account keeps your data and answers synced across devices. Or explore the demo first,
+                no sign-up needed.
+              </div>
+            )}
             <div style={{ display: 'flex', background: 'var(--bg-3)', border: '1px solid var(--bg-6)', borderRadius: 100, padding: 3, gap: 2 }}>
               {OB_TABS.map((t) => {
                 const active = tab === t.id
@@ -532,6 +544,7 @@ export function Onboarding({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={tab === 'create' ? 'new-password' : 'current-password'}
+                autoFocus={tab === 'signin' && !!confirmedEmail}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && email && password.length >= 8 && !authBusy) void submitAuth()
                 }}

@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EvMetaEntry, Fuel, Mode, Profile } from './types'
 import * as api from './lib/api'
-import type { Session, UploadRecord } from './lib/api'
+import type { EmailNotice, Session, UploadRecord } from './lib/api'
 import { parseGreenButtonCsv, type ParsedUpload } from './lib/parse'
 import { SAMPLE_BILLING, sampleUploads } from './lib/sample'
 import { getForecast, REFRESH_MS, type ForecastDay } from './lib/weather'
@@ -77,9 +77,13 @@ function persistGuestUploads(uploads: Partial<Record<Fuel, UploadRecord>>): void
   writeJson(GUEST_UPLOADS_KEY, rows)
 }
 
+export type { EmailNotice }
+
 export interface HearthStore {
   authReady: boolean
   session: Session | null
+  emailNotice: EmailNotice | null
+  clearEmailNotice: () => void
   profile: Profile
   mode: Mode
   setMode: (m: Mode) => void
@@ -141,6 +145,8 @@ export function useHearthStore(): HearthStore {
   const [authReady, setAuthReady] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
   const [recovering, setRecovering] = useState(false)
+  const [emailNotice, setEmailNotice] = useState<EmailNotice | null>(api.emailLanding)
+  const clearEmailNotice = useCallback(() => setEmailNotice(null), [])
   // A guest's home facts persist alongside their uploads and answers. Without
   // this the ZIP vanished on every refresh, and with it the AC playbook's
   // forecast, since a signed-out profile lives nowhere else.
@@ -188,16 +194,23 @@ export function useHearthStore(): HearthStore {
   // Auth lifecycle.
   useEffect(() => {
     let cancelled = false
-    api.supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled) {
-        setSession(data.session)
-        setAuthReady(true)
-      }
-    })
+    ;(async () => {
+      // A confirmation leaves sign-in open for the address just confirmed.
+      await api.settleEmailLanding()
+      const { data } = await api.supabase.auth.getSession()
+      if (cancelled) return
+      setSession(data.session)
+      // Already signed in here: an email link has nothing to tell them.
+      if (data.session) setEmailNotice(null)
+      setAuthReady(true)
+    })()
     const { data: sub } = api.supabase.auth.onAuthStateChange((evt, s) => {
+      // Another account being signed out for a confirmation would flash its dashboard.
+      if (api.settlingEmailLanding()) return
       // A reset link signs the user in with a recovery session; hold that flag
       // so the UI asks for a new password instead of dropping them into the app.
       if (evt === 'PASSWORD_RECOVERY') setRecovering(true)
+      if (s) setEmailNotice(null)
       setSession(s)
       setAuthReady(true)
     })
@@ -562,6 +575,8 @@ export function useHearthStore(): HearthStore {
   return {
     authReady,
     session,
+    emailNotice,
+    clearEmailNotice,
     profile,
     mode,
     setMode,
