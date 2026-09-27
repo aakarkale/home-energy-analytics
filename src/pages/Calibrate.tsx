@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { Archive, EventFilter, EvMetaEntry, Hearth } from '../types'
-import type { QDef } from '../lib/content'
-import { CAUSE_OPTS, SEV_BG, SEV_COLOR } from '../model'
+import type { Archive, Hearth } from '../types'
+import { answerOf, dayTag, type QDef } from '../lib/content'
+import { SEV_BG, SEV_COLOR } from '../model'
 import { EmptyState } from '../components/EmptyState'
 import { fmtMoney0 } from '../lib/format'
 
@@ -44,20 +44,62 @@ const btnBase: CSSProperties = {
   fontWeight: 700,
 }
 
-/** An event carries the user's input once it has a cause or is marked away. */
-const isTagged = (m: EvMetaEntry | undefined) => !!m && ((!!m.cause && m.cause !== CAUSE_OPTS[0]) || !!m.away)
-
-/** "3 answers and 1 tagged event". */
-function inputPhrase(answers: number, events: number): string {
-  const parts: string[] = []
-  if (answers) parts.push(`${answers} ${answers === 1 ? 'answer' : 'answers'}`)
-  if (events) parts.push(`${events} tagged ${events === 1 ? 'event' : 'events'}`)
-  return parts.join(' and ')
+const tagChip: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '.05em',
+  textTransform: 'uppercase',
+  borderRadius: 100,
+  padding: '3px 8px',
+  flex: 'none',
 }
+
+/** A flagged day's tag wears its severity colour; other questions stay neutral. */
+const tagColours = (q: QDef): CSSProperties =>
+  q.day ? { color: SEV_COLOR[q.day.sev], background: SEV_BG[q.day.sev] } : { color: 'var(--fg-4)', background: 'var(--bg-4)' }
+
+const answersPhrase = (n: number) => `${n} ${n === 1 ? 'answer' : 'answers'}`
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** One diagnostic question, open for answering. */
+/**
+ * Reads and writes one question's answer wherever it lives: `answers` for most
+ * questions, the day's event tag for a question about a flagged day. A flagged
+ * day takes one answer, so a new pick or a typed one replaces the last.
+ */
+function answerIO(hearth: Hearth, q: QDef) {
+  const { fuel } = hearth
+  const ans = answerOf(q, fuel, hearth.answers, hearth.evMeta)
+  const draftKey = `${fuel}:${q.id}`
+  if (!q.day) {
+    return {
+      ans,
+      draftKey,
+      toggle: (o: string) => hearth.toggleAnswer(draftKey, o, !!q.multi),
+      removeCustom: (o: string) => hearth.removeCustomAnswer(draftKey, o),
+      addOther: () => hearth.addOther(draftKey, !!q.multi),
+      clear: () => hearth.clearAnswer(draftKey),
+    }
+  }
+  const { date } = q.day
+  const set = (value: string | null) =>
+    hearth.setDayTag(fuel, date, dayTag(q, value, hearth.evMeta[`${fuel}:${date}`]))
+  return {
+    ans,
+    draftKey,
+    toggle: (o: string) => set(ans.includes(o) ? null : o),
+    removeCustom: () => set(null),
+    addOther: () => {
+      const v = (hearth.otherDraft[draftKey] || '').trim().slice(0, 15)
+      if (!v) return
+      set(v)
+      hearth.setOtherDraft(draftKey, '')
+    },
+    clear: () => set(null),
+  }
+}
+
+/** One question, open for answering: a diagnostic one, or one about a flagged day. */
 function QuestionCard({
   hearth,
   q,
@@ -69,11 +111,12 @@ function QuestionCard({
   onArchive: () => void
 }) {
   const { acc, accSoft, elec } = hearth
-  const key = hearth.fuel + ':' + q.id
-  const ans = hearth.answers[key] || []
+  const io = answerIO(hearth, q)
+  const ans = io.ans
   const done = ans.length > 0
-  const otherVal = hearth.otherDraft[key] || ''
+  const otherVal = hearth.otherDraft[io.draftKey] || ''
   const custom = ans.filter((x) => !q.opts.includes(x))
+  const cost = q.day && q.day.cost !== '—' ? q.day.cost : null
 
   return (
     <div
@@ -89,26 +132,33 @@ function QuestionCard({
       }}
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--fg-4)', background: 'var(--bg-4)', borderRadius: 100, padding: '3px 8px', flex: 'none' }}>
-          {q.tag}
-        </span>
+        <span style={{ ...tagChip, ...tagColours(q) }}>{q.tag}</span>
         {q.money && (
           <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent-green)', background: 'rgba(4,196,10,0.12)', borderRadius: 100, padding: '3px 8px', flex: 'none' }}>
             {q.money}
+          </span>
+        )}
+        {cost && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--fg-2)', background: 'var(--bg-4)', borderRadius: 100, padding: '3px 8px', flex: 'none' }}>
+            {cost}
           </span>
         )}
         {done && (
           <i className="ph-fill ph-check-circle" style={{ marginLeft: 'auto', color: 'var(--acc,#ffdd55)', fontSize: 16 }} />
         )}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.45 }}>{q.text}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)', lineHeight: 1.45 }}>{q.text}</div>
+        {q.day && <div style={{ fontSize: 12, color: 'var(--fg-3)', lineHeight: 1.5 }}>{q.day.detail}</div>}
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {q.opts.map((o) => {
           const on = ans.includes(o)
           return (
             <button
               key={o}
-              onClick={() => hearth.toggleAnswer(key, o, !!q.multi)}
+              onClick={() => io.toggle(o)}
+              aria-pressed={on}
               className="h-interactive chip press97"
               style={{
                 ...chipBase,
@@ -124,7 +174,8 @@ function QuestionCard({
         {custom.map((o) => (
           <button
             key={o}
-            onClick={() => hearth.removeCustomAnswer(key, o)}
+            onClick={() => io.removeCustom(o)}
+            aria-pressed="true"
             className="h-interactive chip press97"
             style={{ ...chipBase, border: `1px solid ${acc}`, background: acc, color: '#0a0a0a' }}
           >
@@ -134,12 +185,13 @@ function QuestionCard({
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input
             value={otherVal}
-            onChange={(e) => hearth.setOtherDraft(key, e.target.value)}
+            onChange={(e) => hearth.setOtherDraft(io.draftKey, e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') hearth.addOther(key, !!q.multi)
+              if (e.key === 'Enter') io.addOther()
             }}
             maxLength={15}
             placeholder="Something else?"
+            aria-label={`Something else: ${q.text}`}
             className="other-input"
             style={{
               width: 118,
@@ -156,7 +208,7 @@ function QuestionCard({
           />
           {otherVal && (
             <button
-              onClick={() => hearth.addOther(key, !!q.multi)}
+              onClick={io.addOther}
               className="h-interactive press97"
               style={{ ...chipBase, border: `1px solid var(--acc,#ffdd55)`, background: 'transparent', color: 'var(--acc,#ffdd55)' }}
             >
@@ -165,77 +217,58 @@ function QuestionCard({
           )}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        {done && (
-          <button
-            onClick={() => hearth.clearAnswer(key)}
-            className="h-interactive hov-fg2"
-            style={linkBtn}
-          >
-            Clear answer
-          </button>
-        )}
-        {done && (
-          <button onClick={onArchive} className="h-interactive hov-fg2" style={linkBtn}>
-            Archive
-          </button>
-        )}
-      </div>
+      {q.day && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.45 }}>
+          <i className="ph ph-lightbulb" style={{ color: 'var(--acc,#ffdd55)', fontSize: 14, flex: 'none', marginTop: 1 }} />
+          {q.day.tip}
+        </div>
+      )}
+      {(done || q.day) && (
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          {done && (
+            <button onClick={io.clear} className="h-interactive hov-fg2" style={linkBtn}>
+              Clear answer
+            </button>
+          )}
+          {done && (
+            <button onClick={onArchive} className="h-interactive hov-fg2" style={linkBtn}>
+              Archive
+            </button>
+          )}
+          {q.day && (
+            <button
+              onClick={() => hearth.go('energy')}
+              className="h-interactive hov-bright"
+              style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', fontSize: 12, fontWeight: 600, color: 'var(--acc,#ffdd55)', padding: 0 }}
+            >
+              Spotlight on charts →
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 /** An archived answer: readable at a glance, and restorable for editing. */
 function ArchivedAnswer({ hearth, q, onRestore }: { hearth: Hearth; q: QDef; onRestore: () => void }) {
-  const key = hearth.fuel + ':' + q.id
-  const ans = hearth.answers[key] || []
+  const io = answerIO(hearth, q)
   return (
     <div style={archivedRow}>
       <i className="ph-fill ph-check-circle" style={{ color: 'var(--accent-green)', fontSize: 16, flex: 'none', marginTop: 1 }} />
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--fg-5)' }}>
-          {q.tag}
-        </div>
-        <div style={{ fontSize: 12.5, color: 'var(--fg-3)', lineHeight: 1.45, marginTop: 2 }}>{q.text}</div>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-0)', marginTop: 5 }}>{ans.join(' · ')}</div>
+        <span style={{ ...tagChip, ...tagColours(q), display: 'inline-block' }}>{q.tag}</span>
+        <div style={{ fontSize: 12.5, color: 'var(--fg-3)', lineHeight: 1.45, marginTop: 5 }}>{q.text}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-0)', marginTop: 5 }}>{io.ans.join(' · ')}</div>
       </div>
       <div style={{ display: 'flex', gap: 10, flex: 'none' }}>
         <button onClick={onRestore} className="h-interactive hov-fg2" style={linkBtn}>
           Restore
         </button>
-        <button onClick={() => hearth.clearAnswer(key)} className="h-interactive hov-fg2" style={linkBtn}>
+        <button onClick={io.clear} className="h-interactive hov-fg2" style={linkBtn}>
           Clear
         </button>
       </div>
-    </div>
-  )
-}
-
-/** An archived event and the tags it was filed with. */
-function ArchivedEvent({
-  e,
-  meta,
-  onRestore,
-}: {
-  e: { type: string; title: string; sev: keyof typeof SEV_COLOR }
-  meta: EvMetaEntry
-  onRestore: () => void
-}) {
-  const tags = [meta.cause && meta.cause !== CAUSE_OPTS[0] ? meta.cause : null, meta.away ? 'Away' : null].filter(Boolean)
-  return (
-    <div style={archivedRow}>
-      <span
-        style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: SEV_COLOR[e.sev], background: SEV_BG[e.sev], borderRadius: 100, padding: '3px 8px', flex: 'none' }}
-      >
-        {e.type}
-      </span>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 12.5, color: 'var(--fg-3)', lineHeight: 1.45 }}>{e.title}</div>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-0)', marginTop: 3 }}>{tags.join(' · ')}</div>
-      </div>
-      <button onClick={onRestore} className="h-interactive hov-fg2" style={{ ...linkBtn, flex: 'none' }}>
-        Restore
-      </button>
     </div>
   )
 }
@@ -250,15 +283,6 @@ const archivedRow: CSSProperties = {
   border: '1px solid var(--bg-6)',
 }
 
-const groupLabel: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: '.05em',
-  textTransform: 'uppercase',
-  color: 'var(--fg-4)',
-  marginTop: 4,
-}
-
 export function Calibrate({ hearth }: { hearth: Hearth }) {
   const { bundle } = hearth
   const [showArchive, setShowArchive] = useState(false)
@@ -268,9 +292,9 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
   const [reveal, setReveal] = useState<string | null>(null)
   // Answers persist the instant they are tapped, so this reports the write
   // rather than causing it: the user sees, in words and in dollars, that the
-  // information landed.
+  // information landed. A flagged day's answer is its event tag, so both count.
   const [saved, setSaved] = useState<string | null>(null)
-  const sig = JSON.stringify(hearth.answers)
+  const sig = JSON.stringify(hearth.answers) + JSON.stringify(hearth.evMeta)
   const firstPass = useRef(true)
   useEffect(() => {
     if (firstPass.current) {
@@ -285,9 +309,8 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
     return () => window.clearTimeout(t)
   }, [filed])
   // An undo belongs to the fuel it was made on, and gives way once the user
-  // moves on to answering or tagging something else.
-  const tagSig = JSON.stringify(hearth.evMeta)
-  useEffect(() => setFiled(null), [hearth.fuel, sig, tagSig])
+  // moves on to answering something else.
+  useEffect(() => setFiled(null), [hearth.fuel, sig])
   useEffect(() => {
     if (!reveal) return
     document.getElementById(reveal)?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' })
@@ -295,40 +318,31 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
   }, [reveal])
 
   if (!bundle) return <EmptyState hearth={hearth} />
-  const a = bundle.analysis
   const qDefs = bundle.questions
 
-  const archivedAnswers = new Set(hearth.archive.answers)
-  const archivedEvents = new Set(hearth.archive.events)
-  const qKey = (q: QDef) => `${hearth.fuel}:${q.id}`
-  const evKey = (date: string) => `${hearth.fuel}:${date}`
-  const metaOf = (date: string) => hearth.evMeta[evKey(date)]
+  // Where each question is filed: a flagged day with the day's tags, the rest
+  // with the answers.
+  const kindOf = (q: QDef): keyof Archive => (q.day ? 'events' : 'answers')
+  const keyOf = (q: QDef) => `${hearth.fuel}:${q.day ? q.day.date : q.id}`
+  const filedKeys = { answers: new Set(hearth.archive.answers), events: new Set(hearth.archive.events) }
 
-  const isAnswered = (q: QDef) => !!hearth.answers[qKey(q)]?.length
-  const qArchived = (q: QDef) => isAnswered(q) && archivedAnswers.has(qKey(q))
-  const openQs = qDefs.filter((q) => !qArchived(q))
-  const archivedQs = qDefs.filter(qArchived)
+  const isAnswered = (q: QDef) => answerOf(q, hearth.fuel, hearth.answers, hearth.evMeta).length > 0
+  const isArchived = (q: QDef) => isAnswered(q) && filedKeys[kindOf(q)].has(keyOf(q))
+  const openQs = qDefs.filter((q) => !isArchived(q))
+  const archivedQs = qDefs.filter(isArchived)
   const answered = qDefs.filter(isAnswered).length
   const qProg = `${answered} of ${qDefs.length}`
   const qProgW = qDefs.length ? Math.round((answered / qDefs.length) * 100) + '%' : '0%'
 
-  const evArchived = (date: string) => isTagged(metaOf(date)) && archivedEvents.has(evKey(date))
-  const activeEvents = a.events.filter((e) => !evArchived(e.date))
-  const archivedEvs = a.events.filter((e) => evArchived(e.date))
-
-  // Only what carries the user's input is filed: an unanswered question or an
-  // untagged event stays on the page, still waiting for them.
+  // Only answered questions are filed: an unanswered one stays on the page,
+  // still waiting for them.
   const readyQs = openQs.filter(isAnswered)
-  const readyEvs = activeEvents.filter((e) => isTagged(metaOf(e.date)))
-  const ready = readyQs.length + readyEvs.length
 
-  const file = (qs: QDef[], evs: { date: string }[]) => {
-    const change: Archive = {
-      answers: [...new Set(qs.map(qKey))],
-      events: [...new Set(evs.map((e) => evKey(e.date)))],
-    }
+  const file = (qs: QDef[]) => {
+    const change: Archive = { answers: [], events: [] }
+    for (const q of qs) change[kindOf(q)].push(keyOf(q))
     hearth.setArchived(change, true)
-    setFiled({ ...change, phrase: inputPhrase(qs.length, evs.length) })
+    setFiled({ ...change, phrase: answersPhrase(qs.length) })
   }
   const undo = () => {
     if (!filed) return
@@ -339,21 +353,8 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
   const lift = bundle.answerLift
   const moved = Math.abs(lift) >= 1
 
-  const counts: Record<EventFilter, number> = {
-    All: activeEvents.length,
-    Spikes: activeEvents.filter((e) => e.type === 'Spike').length,
-    'Quiet days': activeEvents.filter((e) => e.type === 'Quiet day').length,
-    High: activeEvents.filter((e) => e.sev === 'high').length,
-  }
-  const events = activeEvents.filter((e) => {
-    if (hearth.filter === 'Spikes') return e.type === 'Spike'
-    if (hearth.filter === 'Quiet days') return e.type === 'Quiet day'
-    if (hearth.filter === 'High') return e.sev === 'high'
-    return true
-  })
-
-  const archivedCount = archivedQs.length + archivedEvs.length
-  const showBar = ready > 0 || !!filed
+  const archivedCount = archivedQs.length
+  const showBar = readyQs.length > 0 || !!filed
 
   return (
     <>
@@ -375,7 +376,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 10 }}>
             {openQs.map((q) => (
-              <QuestionCard key={q.id} hearth={hearth} q={q} onArchive={() => file([q], [])} />
+              <QuestionCard key={q.id} hearth={hearth} q={q} onArchive={() => file([q])} />
             ))}
           </div>
 
@@ -396,11 +397,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
             />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
-                {answered === 0
-                  ? 'Nothing answered yet'
-                  : saved
-                    ? `Saved ${saved}`
-                    : `${answered} ${answered === 1 ? 'answer' : 'answers'} saved`}
+                {answered === 0 ? 'Nothing answered yet' : saved ? `Saved ${saved}` : `${answersPhrase(answered)} saved`}
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--fg-4)', marginTop: 2, lineHeight: 1.45 }}>
                 {answered === 0
@@ -424,120 +421,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
         </div>
       )}
 
-      {activeEvents.length > 0 && (
-        <div style={{ ...card, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg-0)' }}>Event feed</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
-              {(Object.keys(counts) as EventFilter[]).map((f) => {
-                const active = hearth.filter === f
-                return (
-                  <button
-                    key={f}
-                    onClick={() => hearth.setFilter(f)}
-                    style={{
-                      padding: '5px 11px',
-                      borderRadius: 100,
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-dm-sans)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      border: `1px solid ${active ? 'var(--fg-6)' : 'var(--bg-6)'}`,
-                      background: active ? 'var(--bg-5)' : 'transparent',
-                      color: active ? 'var(--fg-0)' : 'var(--fg-4)',
-                    }}
-                  >
-                    {f + ' ' + counts[f]}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {events.map((e, ei) => {
-              const meta = metaOf(e.date) || {}
-              const spine = SEV_COLOR[e.sev]
-              return (
-                <div
-                  key={e.id}
-                  id={`calibrate-ev-${e.id}`}
-                  className="h-fade-up h-lift"
-                  style={{ display: 'flex', borderRadius: 14, background: 'var(--bg-3)', border: '1px solid var(--bg-6)', overflow: 'hidden', animationDelay: `${Math.min(ei, 8) * 55}ms` }}
-                >
-                  <div style={{ width: 4, flex: 'none', background: spine }} />
-                  <div style={{ flex: 1, minWidth: 0, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: spine, background: SEV_BG[e.sev], borderRadius: 100, padding: '3px 8px' }}>
-                        {e.type}
-                      </span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>{e.title}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--fg-2)', background: 'var(--bg-4)', borderRadius: 100, padding: '3px 9px', flex: 'none' }}>
-                        {e.cost}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-3)', lineHeight: 1.5 }}>{e.detail}</div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: 'var(--fg-2)', lineHeight: 1.45 }}>
-                      <i className="ph ph-lightbulb" style={{ color: 'var(--acc,#ffdd55)', fontSize: 14, flex: 'none', marginTop: 1 }} />
-                      {e.tip}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingTop: 4 }}>
-                      <select
-                        value={meta.cause || CAUSE_OPTS[0]}
-                        onChange={(ev) => hearth.setCause(hearth.fuel, e.date, ev.target.value)}
-                        style={{
-                          background: 'var(--bg-4)',
-                          color: 'var(--fg-2)',
-                          border: '1px solid var(--bg-6)',
-                          borderRadius: 100,
-                          padding: '5px 10px',
-                          fontFamily: 'var(--font-dm-sans)',
-                          fontSize: 12,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {CAUSE_OPTS.map((co) => (
-                          <option key={co} value={co}>
-                            {co}
-                          </option>
-                        ))}
-                      </select>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--fg-3)', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={!!meta.away}
-                          onChange={() => hearth.toggleAway(hearth.fuel, e.date)}
-                          style={{ accentColor: 'rgb(255,221,85)', width: 14, height: 14, cursor: 'pointer' }}
-                        />
-                        I was away
-                      </label>
-                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-                        {isTagged(meta) && (
-                          <button
-                            onClick={() => file([], activeEvents.filter((x) => x.date === e.date))}
-                            className="h-interactive hov-fg2"
-                            style={{ ...linkBtn, fontSize: 12 }}
-                          >
-                            Archive
-                          </button>
-                        )}
-                        <button
-                          onClick={() => hearth.go('energy')}
-                          className="h-interactive hov-bright"
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-dm-sans)', fontSize: 12, fontWeight: 600, color: 'var(--acc,#ffdd55)', padding: 0 }}
-                        >
-                          Spotlight on charts →
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {openQs.length === 0 && activeEvents.length === 0 && (
+      {openQs.length === 0 && (
         <div className="h-fade-up" style={{ ...card, padding: '28px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
           <div
             style={{ width: 44, height: 44, borderRadius: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: archivedCount ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--bg-4)' }}
@@ -552,7 +436,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--fg-3)', lineHeight: 1.5, maxWidth: 440 }}>
             {archivedCount
-              ? 'Everything you answered is in the archive below and still refines every estimate. New questions and events show up here as new data arrives.'
+              ? 'Everything you answered is in the archive below and still refines every estimate. New questions show up here as new data arrives.'
               : 'Upload more data and new questions appear as patterns emerge, along with any spikes or quiet days worth explaining.'}
           </div>
           {archivedCount > 0 && (
@@ -596,29 +480,14 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
           </button>
           {showArchive && (
             <div className="h-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
-              {archivedQs.length > 0 && <div style={groupLabel}>Answers</div>}
               {archivedQs.map((q) => (
                 <ArchivedAnswer
                   key={q.id}
                   hearth={hearth}
                   q={q}
                   onRestore={() => {
-                    hearth.setArchived({ answers: [qKey(q)] }, false)
+                    hearth.setArchived({ [kindOf(q)]: [keyOf(q)] }, false)
                     setReveal(`calibrate-q-${q.id}`)
-                  }}
-                />
-              ))}
-              {archivedEvs.length > 0 && <div style={groupLabel}>Events</div>}
-              {archivedEvs.map((e) => (
-                <ArchivedEvent
-                  key={e.id}
-                  e={e}
-                  meta={metaOf(e.date) || {}}
-                  onRestore={() => {
-                    hearth.setArchived({ events: [evKey(e.date)] }, false)
-                    // A filter could hide it from the feed it returns to.
-                    if (hearth.filter !== 'All') hearth.setFilter('All')
-                    setReveal(`calibrate-ev-${e.id}`)
                   }}
                 />
               ))}
@@ -655,7 +524,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
           />
           <div aria-live="polite" style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-0)', lineHeight: 1.35 }}>
-              {filed ? `Archived ${filed.phrase}` : `${inputPhrase(readyQs.length, readyEvs.length)} ready to archive`}
+              {filed ? `Archived ${filed.phrase}` : `${answersPhrase(readyQs.length)} ready to archive`}
             </div>
             {/* On a phone the bar stays one compact row; the archive explains itself. */}
             {!hearth.isMobile && (
@@ -677,7 +546,7 @@ export function Calibrate({ hearth }: { hearth: Hearth }) {
             </button>
           ) : (
             <button
-              onClick={() => file(readyQs, readyEvs)}
+              onClick={() => file(readyQs)}
               className="h-interactive btn-acc press98"
               style={{ ...btnBase, ...(hearth.isMobile && { padding: '9px 14px' }), border: 'none', background: 'var(--acc,#ffdd55)', color: '#0a0a0a' }}
             >

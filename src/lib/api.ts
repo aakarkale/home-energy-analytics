@@ -428,6 +428,9 @@ export function saveAnnotation(
           away: !!meta.away,
           cause: meta.cause ?? null,
           updated_at: new Date().toISOString(),
+          // An emptied tag is filed nowhere. Otherwise archived_at is left
+          // alone, so changing a tag never files or unfiles it.
+          ...(!meta.cause && !meta.away ? { archived_at: null } : {}),
         },
         { onConflict: 'user_id,upload_id,date_key' },
       )

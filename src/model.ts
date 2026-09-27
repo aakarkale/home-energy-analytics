@@ -99,13 +99,3 @@ export const SEV_BG = {
   med: 'rgba(255,133,115,0.1)',
   low: 'rgba(174,134,232,0.12)',
 } as const
-
-export const CAUSE_OPTS = [
-  'What caused this?',
-  'AC / cooling',
-  'Laundry',
-  'Cooking',
-  'EV charging',
-  'Guests',
-  'Something else',
-]

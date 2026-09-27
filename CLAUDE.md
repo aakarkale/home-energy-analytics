@@ -56,8 +56,12 @@ How it works here:
 - **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
   `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
   account (under 14 days old) lands on that page.
-- **Calibrate's archive only tidies the page.** Archived answers and event tags
-  keep refining every estimate. Accounts keep it as `archived_at` on `answers` and
+- **Calibrate asks everything as questions.** Flagged days join the diagnostic
+  questions (`dayQuestions`, `src/lib/content.ts`); a day's answer is its event tag
+  (`evMeta`, the `annotations` table), read and written through `answerOf` and
+  `dayTag`. A day an existing question already covers is not asked twice.
+- **Calibrate's archive only tidies the page.** Archived answers keep refining
+  every estimate. Accounts keep it as `archived_at` on `answers` and
   `annotations`; guests and the demo in the browser. Answer and annotation writes
   share one ordered queue (`inOrder`, `src/lib/api.ts`), so an archive never
   overtakes the answer it files.
