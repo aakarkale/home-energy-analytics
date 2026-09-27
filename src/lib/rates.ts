@@ -9,7 +9,8 @@
 import type { ParsedUpload } from './parse'
 import type { Tou } from './analyze'
 import { median, quantile } from './stats'
-import { addDays, dateFromKey } from './format'
+import { addDays } from './format'
+import { cycleLength, cycleWindows } from './cycles'
 
 export interface HourRow {
   h: number
@@ -199,12 +200,8 @@ export function buildRates(
   // cycle's baseline allowance.
   let allowance: AllowanceAnalysis | null = null
   if (hasTiers && billing) {
-    const cycleLen =
-      Math.round((dateFromKey(billing.end).getTime() - dateFromKey(billing.start).getTime()) / 86400000) + 1
-    if (cycleLen >= 20 && cycleLen <= 40) {
-      // Enumerate cycle windows covering the data range.
-      let start = billing.start
-      while (start > p.periodStart) start = addDays(start, -cycleLen)
+    const cycleLen = cycleLength(billing)
+    if (cycleLen) {
       const byDay = new Map<string, Priced[]>()
       for (const x of priced) {
         const xs = byDay.get(x.d) ?? []
@@ -214,8 +211,7 @@ export function buildRates(
       const crossings: AllowanceCrossing[] = []
       let bestCumulative: AllowanceAnalysis['cumulative'] = []
       let lastCycleKwh = 0
-      for (let cs = start; cs <= p.periodEnd; cs = addDays(cs, cycleLen)) {
-        const ce = addDays(cs, cycleLen - 1)
+      for (const { start: cs, end: ce } of cycleWindows(billing, p.periodStart, p.periodEnd)) {
         let cum = 0
         let crossed: { kwh: number; onDay: number } | null = null
         let daysPresent = 0

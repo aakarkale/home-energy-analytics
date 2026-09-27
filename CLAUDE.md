@@ -56,6 +56,11 @@ How it works here:
 - **Every nav tab explains itself.** `NAV_PAGES` entries carry a required one-line
   `brief`; `PageTip` shows it beside the tab the first time a visitor or a new
   account (under 14 days old) lands on that page.
+- **Billing cycles come from one place.** `src/lib/cycles.ts` steps cycles out
+  from the one the user confirmed. The Rates allowance, the bill projection
+  (always the cycle holding the last reading), the Overview cycle dots and Bills
+  by cycle all walk them from there. A confirmed range outside 20 to 40 days is
+  not a cycle, and those features stand down rather than guess.
 - **Calibrate asks everything as questions.** Flagged days join the diagnostic
   questions (`dayQuestions`, `src/lib/content.ts`); a day's answer is its event tag
   (`evMeta`, the `annotations` table), read and written through `answerOf` and

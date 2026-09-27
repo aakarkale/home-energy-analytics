@@ -7,6 +7,7 @@ import { buildRates } from './rates'
 import { parseGreenButtonCsv, toGreenButtonCsv, type ParsedUpload } from './parse'
 import { daysBetween, mergeUploads, reviewUpload, toRuns } from './merge'
 import { addDays } from './format'
+import { cycleLength, cycleWindows } from './cycles'
 
 export function runSelfTest(): void {
   const { electric, gas } = sampleUploads()
@@ -212,4 +213,56 @@ export function runMergeTest(): void {
   check(runs(toRuns(['2026-08-01', '2026-07-31', '2026-08-02', '2026-08-05'])) === '2026-07-31..2026-08-02:3 2026-08-05..2026-08-05:1', 'toRuns')
 
   console.log(`\n=== merge ===\n${checks} checks passed`)
+}
+
+export function runCycleTest(): void {
+  let checks = 0
+  const check = (cond: unknown, msg: string) => {
+    checks++
+    if (!cond) throw new Error(`cycle test failed: ${msg}`)
+  }
+  const spans = (ws: { start: string; end: string }[]) => ws.map((w) => `${w.start}..${w.end}`).join(' ')
+
+  // Stepped out both ways from the confirmed cycle, oldest first.
+  const confirmed = { start: '2026-08-06', end: '2026-09-03' }
+  check(cycleLength(confirmed) === 29, 'length counts both ends')
+  check(
+    spans(cycleWindows(confirmed, '2026-07-02', '2026-09-25')) ===
+      '2026-06-09..2026-07-07 2026-07-08..2026-08-05 2026-08-06..2026-09-03 2026-09-04..2026-10-02',
+    'windows cover the data from the confirmed cycle',
+  )
+  // Every window overlaps the data, however far away the confirmed cycle is.
+  for (const far of [{ start: '2025-01-01', end: '2025-01-30' }, { start: '2027-03-01', end: '2027-03-30' }]) {
+    const ws = cycleWindows(far, '2026-07-02', '2026-07-31')
+    check(ws.length >= 1 && ws[0].start <= '2026-07-02' && ws[0].end >= '2026-07-02', `first window holds the first day (${far.start})`)
+    check(ws.every((w) => w.end >= '2026-07-02' && w.start <= '2026-07-31'), `no window outside the data (${far.start})`)
+    check(ws.every((w, i) => i === 0 || w.start === addDays(ws[i - 1].end, 1)), `windows are contiguous (${far.start})`)
+  }
+  // A cycle left spanning the whole file is not a monthly cycle.
+  check(cycleLength({ start: '2026-07-02', end: '2026-09-25' }) === null, 'an 86-day range is rejected')
+  check(cycleWindows({ start: '2026-07-02', end: '2026-09-25' }, '2026-07-02', '2026-09-25').length === 0, 'and yields no windows')
+
+  // On the sample: one cycle, still running a day past the data.
+  const a = analyzeFuel(sampleUploads().electric, SAMPLE_BILLING)
+  check(a.cycles.length === 1, 'sample spans one cycle')
+  const [c] = a.cycles
+  check(c.startsInData && !c.endsInData, 'sample cycle starts in the data and is still running')
+  check(Math.abs(c.cost - a.totalCost) < 1e-6 && c.days === a.days, 'all readings land in it')
+  check(a.projection?.start === c.start && a.projection?.end === c.end, 'projection is for the running cycle')
+
+  // Across several cycles, totals partition the readings and the projection
+  // follows the newest cycle, not the confirmed one.
+  const p = sampleUploads().electric
+  const b = analyzeFuel(p, { start: '2026-08-01', end: '2026-08-10' })
+  check(b.cycles.length === 0 && b.projection?.start === '2026-08-01', 'a 10-day range keeps the old projection')
+  const m = analyzeFuel(p, { start: '2026-08-04', end: '2026-08-13' })
+  check(m.cycles.length === 0, '10 days is not monthly either')
+  const w = analyzeFuel(p, { start: '2026-07-10', end: '2026-08-08' })
+  check(w.cycles.length === 2, `two cycles across the sample (${spans(w.cycles)})`)
+  check(!w.cycles[0].startsInData && w.cycles[0].endsInData && w.cycles[1].startsInData && !w.cycles[1].endsInData, 'partial first, running last')
+  check(Math.abs(w.cycles.reduce((x, y) => x + y.cost, 0) - w.totalCost) < 1e-6, 'cycle costs add up to the total')
+  check(w.cycles.reduce((x, y) => x + y.days, 0) === w.days, 'every day in exactly one cycle')
+  check(w.projection?.start === w.cycles[1].start, 'projection follows the newest cycle')
+
+  console.log(`\n=== cycles ===\n${checks} checks passed`)
 }

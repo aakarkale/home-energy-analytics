@@ -162,6 +162,14 @@ select:focus-visible, input:focus-visible, button:focus-visible,
 .h-pagetip-top { animation: h-fade-up 480ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .h-pagetip-out { animation: h-fade-out 150ms ease-out both; }
 
+/* Markers on a line pop in place once it has drawn. transform-box keeps an
+   SVG mark scaling from its own centre rather than the viewport corner. */
+.h-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: h-pop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* Bars grow from the baseline; the transform-origin is what sells it. */
 .h-grow { transform-origin: bottom; animation: h-grow 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .h-bar { transition: filter 150ms ease, opacity 150ms ease; }
@@ -184,7 +192,7 @@ select:focus-visible, input:focus-visible, button:focus-visible,
 
 @media (prefers-reduced-motion: reduce) {
   .h-draw, .h-area, .h-wipe, .h-pop, .h-spin, .h-fade-up, .h-grow, .h-tip,
-  .h-pagetip-right, .h-pagetip-top, .h-pagetip-out, .h-confirm, .h-confirm-badge {
+  .h-pagetip-right, .h-pagetip-top, .h-pagetip-out, .h-confirm, .h-confirm-badge, .h-dot {
     animation: none !important;
   }
   .h-confirm-ring, .h-confetti { display: none !important; }

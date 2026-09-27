@@ -17,6 +17,7 @@ import {
   windowLabel,
 } from './format'
 import type { Fuel } from '../types'
+import { cycleWindows } from './cycles'
 
 export interface DayPoint {
   d: string
@@ -54,6 +55,20 @@ export interface EnergyEvent {
   tip: string
 }
 
+/** One billing cycle the readings touch, with what it used and cost. */
+export interface BillCycle {
+  start: string
+  end: string
+  /** Days of readings inside the cycle. */
+  days: number
+  usage: number
+  cost: number
+  /** False when the readings begin partway through this cycle. */
+  startsInData: boolean
+  /** False while the cycle is still running past the last reading. */
+  endsInData: boolean
+}
+
 export interface FuelAnalysis {
   fuel: Fuel
   unit: 'kWh' | 'therms'
@@ -76,6 +91,9 @@ export interface FuelAnalysis {
   dowAvg: number[]
   weekendDeltaPct: number
   events: EnergyEvent[]
+  /** Billing cycles the readings span, oldest first, stepped out from the
+   *  cycle the user confirmed. Empty when that is not a monthly cycle. */
+  cycles: BillCycle[]
   /** Projected bill for the billing cycle holding the last reading; start and
    *  end are that cycle's dates. */
   projection?: { projected: number; dayN: number; cycleDays: number; start: string; end: string }
@@ -362,6 +380,19 @@ export function analyzeFuel(
     dowAvg: [],
     weekendDeltaPct: 0,
     events: [],
+    cycles: billing
+      ? cycleWindows(billing, p.periodStart, p.periodEnd).map((w) => {
+          const inCycle = daily.filter((d) => d.d >= w.start && d.d <= w.end)
+          return {
+            ...w,
+            days: inCycle.length,
+            usage: inCycle.reduce((x, d) => x + d.usage, 0),
+            cost: inCycle.reduce((x, d) => x + d.cost, 0),
+            startsInData: w.start >= p.periodStart,
+            endsInData: w.end <= p.periodEnd,
+          }
+        })
+      : [],
   }
 
   if (p.granularity === 'hourly') {
@@ -474,8 +505,9 @@ export function analyzeFuel(
     }
   }
 
-  // Bill projection for the cycle containing the last reading.
-  const cycle = billing ?? { start: p.periodStart, end: p.periodEnd }
+  // Bill projection for the cycle containing the last reading: the newest
+  // stepped cycle, else the confirmed one as given.
+  const cycle = a.cycles.at(-1) ?? billing ?? { start: p.periodStart, end: p.periodEnd }
   if (cycle.start <= p.periodEnd) {
     const inCycle = daily.filter((d) => d.d >= cycle.start && d.d <= cycle.end)
     if (inCycle.length) {
